@@ -114,6 +114,17 @@ export const NODES = [
   { id: 'TOMM70', protein: 'TOMM70 / TOM70',        disease: 'SHARED', prevalence: 0.45, role: 'outer-membrane import receptor; brings PINK1 to TOM complex; recognises C-terminal mitochondrial signals', secondary: ['PD'] },
   { id: 'NDUFS1', protein: 'Complex I (NDUFS1)',    disease: 'SHARED', prevalence: 0.50, role: 'core subunit of mitochondrial Complex I; biallelic loss causes Leigh syndrome; complex-I deficiency in PD substantia nigra' },
 
+  // ===== Round 3 — additions from Bayati & Chen review =====
+  { id: 'CD63',    protein: 'CD63 (LAMP3)',         disease: 'LSD',    prevalence: 0.55, role: 'lysosomal/late-endosomal tetraspanin; LAMP family; PD-relevant lysosomal trafficking', secondary: ['PD'] },
+  { id: 'TMEM175', protein: 'TMEM175 (lyso K+ channel)', disease: 'PD', prevalence: 0.65, role: 'lysosomal K+ channel; GWAS-identified PD risk locus; loss reduces lysosomal enzyme activity', secondary: ['LSD'] },
+  { id: 'UBE3A',   protein: 'E6-AP ubiquitin ligase', disease: 'SHARED', prevalence: 0.55, role: 'E3 ligase; loss causes Angelman syndrome; central to synaptic UPS turnover' },
+  { id: 'ATG9A',   protein: 'ATG9A scramblase',     disease: 'SHARED', prevalence: 0.50, role: 'only multi-spanning membrane ATG protein; lipid scramblase; mislocalised by αSyn impairs autophagy', secondary: ['PD'] },
+  { id: 'RAB1A',   protein: 'Rab1A GTPase',         disease: 'SHARED', prevalence: 0.45, role: 'ER-Golgi + autophagosome biogenesis; mislocalised by αSyn aggregates', secondary: ['PD'] },
+  { id: 'C1QA',    protein: 'complement C1qA',      disease: 'SHARED', prevalence: 0.55, role: 'complement tag for microglial phagocytosis; drives synaptic pruning in AD', secondary: ['AD'] },
+  { id: 'C3',      protein: 'complement C3',        disease: 'SHARED', prevalence: 0.55, role: 'downstream of C1q; opsonises synapses for microglial removal', secondary: ['AD'] },
+  { id: 'ATP6V0A1',protein: 'V-ATPase V0a1',        disease: 'SHARED', prevalence: 0.50, role: 'lysosomal proton pump subunit; PSEN1 mutations disrupt its assembly in familial AD', secondary: ['AD','LSD'] },
+  { id: 'SLC1A2',  protein: 'EAAT2 / GLT-1',        disease: 'SHARED', prevalence: 0.55, role: 'astrocytic glutamate transporter; lost expression in HD/ALS astrocytes drives excitotoxicity', secondary: ['HD','ALS'] },
+
   // ===== Shared core (between columns) =====
   { id: 'TFEB',      protein: 'TFEB (CLEAR network)',  disease: 'SHARED', prevalence: 0.90, role: 'master regulator of autophagy + lysosomal biogenesis', secondary: ['PD','AD','LSD'] },
   { id: 'MAP1LC3B',  protein: 'LC3',                   disease: 'SHARED', prevalence: 0.85, role: 'autophagosome marker; binds all selective autophagy receptors', secondary: ['PD','AD','ALS'] },
@@ -342,6 +353,136 @@ export const EDGES = [
   { from: 'HEXA', to: 'GALC', kind: 'shared-mechanism', strength: 0.5,
     note: 'Both lysosomal glycosphingolipid hydrolases; deficiency causes Tay-Sachs and Krabbe respectively; both can present with progressive motor regression.',
     pmids: ['12601565'] },
+
+  // ============================================================
+  // Round 3 — edges drawn from Bayati & Chen (Axonal & Synaptic Dysfunctions
+  // Drive Neurodegeneration). The recurring theme: lysosomal/autophagy
+  // machinery sits at the crossroads of PD, AD, ALS, and HD — not just LSD.
+  // Citations for these are deferred to SME validation; renderer shows NCBI
+  // gene-page links per gene rather than fabricated PMIDs.
+  // ============================================================
+
+  // --- αSyn perturbs autophagy initiation machinery ---
+  { from: 'SNCA', to: 'ATG9A', kind: 'opposes', strength: 0.7,
+    note: 'α-synuclein aggregation mislocalises ATG9A, blocking autophagosome biogenesis at the seed-membrane stage. One of the upstream reasons PD neurons fail mitophagy even when PINK1/PRKN are functional.',
+    pmids: [] },
+  { from: 'SNCA', to: 'RAB1A', kind: 'opposes', strength: 0.7,
+    note: 'α-synuclein impairs Rab1A localisation; Rab1A traffic deficits compound ATG9A misplacement and impair autophagosome formation in PD.',
+    pmids: [] },
+  { from: 'RAB1A', to: 'ATG9A', kind: 'complex', strength: 0.6,
+    note: 'Rab1A and ATG9A cooperate in the membrane-seeding step of autophagosome biogenesis; loss of either disrupts autophagy initiation.',
+    pmids: [] },
+
+  // --- TMEM175 / CD63 / GBA lysosomal PD axis ---
+  { from: 'TMEM175', to: 'SNCA', kind: 'shared-mechanism', strength: 0.75,
+    note: 'TMEM175 loss reduces lysosomal enzyme activity, including impaired α-synuclein clearance through chaperone-mediated autophagy; GWAS-identified PD risk locus.',
+    pmids: [] },
+  { from: 'TMEM175', to: 'GBA', kind: 'shared-mechanism', strength: 0.8,
+    note: 'Both PD risk genes converge on lysosomal proteostasis; TMEM175 sets lysosomal pH/K+ balance that GBA depends on for activity.',
+    pmids: [] },
+  { from: 'CD63', to: 'SNCA', kind: 'shared-mechanism', strength: 0.55,
+    note: 'CD63 (lysosomal tetraspanin) participates in late-endosomal/lysosomal trafficking required for α-synuclein clearance; recent PD literature implicates this axis.',
+    pmids: [] },
+  { from: 'CD63', to: 'LAMP1', kind: 'complex', strength: 0.7,
+    note: 'CD63 (LAMP3) and LAMP1 are lysosomal-membrane glycoprotein family members; co-occupy the limiting membrane of mature lysosomes.',
+    pmids: [] },
+  { from: 'CD63', to: 'LAMP2', kind: 'complex', strength: 0.7,
+    note: 'LAMP family lysosomal-membrane glycoproteins; CD63 trafficks similarly via M6P-independent routes.',
+    pmids: [] },
+
+  // --- LAMP1/LAMP2 are autophagy-fusion partners for ALL neurodegen aggregates ---
+  { from: 'LAMP1', to: 'APP', kind: 'shared-mechanism', strength: 0.7,
+    note: 'LAMP1+ lysosomes are the terminal compartment for autophagic Aβ/APP clearance; LAMP1 loss attenuates Aβ degradation in AD.',
+    pmids: [] },
+  { from: 'LAMP1', to: 'MAPT', kind: 'shared-mechanism', strength: 0.7,
+    note: 'Phospho-tau and tau-aggregate clearance route through LAMP1+ lysosomes; impaired in AD/tauopathies.',
+    pmids: [] },
+  { from: 'LAMP1', to: 'HTT', kind: 'shared-mechanism', strength: 0.65,
+    note: 'mHTT polyQ-aggregate clearance depends on autophagosome–LAMP1+ lysosome fusion; impaired in HD.',
+    pmids: [] },
+  { from: 'LAMP2', to: 'APP', kind: 'shared-mechanism', strength: 0.65,
+    note: 'LAMP2-mediated autophagosome–lysosome fusion is required for Aβ clearance; LAMP2 also gates CMA delivery of soluble APP fragments.',
+    pmids: [] },
+  { from: 'LAMP2', to: 'SNCA', kind: 'kinase-substrate', strength: 0.85,
+    note: 'LAMP2A is the receptor for chaperone-mediated autophagy of α-synuclein; pathogenic αSyn binds LAMP2A but is not degraded, gumming up CMA for other substrates.',
+    pmids: [] },
+  { from: 'LAMP2', to: 'MAPT', kind: 'kinase-substrate', strength: 0.65,
+    note: 'Soluble tau is a CMA substrate via LAMP2A; impaired in AD/tauopathies, contributing to tau accumulation.',
+    pmids: [] },
+  { from: 'LAMP2', to: 'HTT', kind: 'kinase-substrate', strength: 0.6,
+    note: 'mHTT N-terminal fragments are CMA substrates via LAMP2A; clearance fails as polyQ-tract aggregation progresses.',
+    pmids: [] },
+
+  // --- v-ATPase / PSEN1 lysosomal-acidification axis (AD) ---
+  { from: 'PSEN1', to: 'ATP6V0A1', kind: 'opposes', strength: 0.8,
+    note: 'PSEN1 mutations impair V-ATPase V0a1 maturation and lysosomal trafficking, preventing lysosomal acidification — a chaperone-independent presenilin function central to familial AD lysosomal dysfunction.',
+    pmids: [] },
+  { from: 'ATP6V0A1', to: 'LAMP1', kind: 'complex', strength: 0.6,
+    note: 'V-ATPase pumps protons into the LAMP1+ lysosomal lumen; acidification is required for resident hydrolase activity (CTSD, CTSB, GBA, GAA).',
+    pmids: [] },
+  { from: 'ATP6V0A1', to: 'CTSD', kind: 'complex', strength: 0.65,
+    note: 'Cathepsin D requires the acidic pH established by V-ATPase to mature and stay enzymatically active; loss of v-ATPase shuts off lysosomal proteolysis.',
+    pmids: [] },
+
+  // --- UBE3A / synaptic UPS (Angelman, broader synaptic biology) ---
+  { from: 'UBE3A', to: 'SNCA', kind: 'kinase-substrate', strength: 0.45,
+    note: 'UBE3A ubiquitinates α-synuclein and regulates its turnover via the UPS; loss-of-function in Angelman syndrome perturbs synaptic protein turnover broadly.',
+    pmids: [] },
+  { from: 'UBE3A', to: 'SQSTM1', kind: 'shared-mechanism', strength: 0.45,
+    note: 'UBE3A loss disrupts the UPS, shunting load to p62-mediated selective autophagy; same compensatory crosstalk implicated in other proteinopathies.',
+    pmids: [] },
+
+  // --- Complement / microglial pruning axis (AD, FTD) ---
+  { from: 'C1QA', to: 'C3', kind: 'kinase-substrate', strength: 0.9,
+    note: 'Classical complement cascade — C1q recognises opsonised synapses and activates C3, generating C3b/iC3b tags that microglia recognise via CR3 for phagocytosis.',
+    pmids: [] },
+  { from: 'C1QA', to: 'TREM2', kind: 'shared-mechanism', strength: 0.55,
+    note: 'Microglial activation state (TREM2-DAP12 vs DAM transcriptional program) sets readiness to execute complement-tagged synaptic pruning; the two axes converge on AD-microglia.',
+    pmids: [] },
+  { from: 'C1QA', to: 'APP', kind: 'shared-mechanism', strength: 0.6,
+    note: 'C1q is upregulated on synapses near Aβ plaques in AD, marking them for premature complement-mediated pruning.',
+    pmids: [] },
+  { from: 'C3', to: 'APP', kind: 'shared-mechanism', strength: 0.55,
+    note: 'C3 tagging of Aβ-proximal synapses drives microglial phagocytosis of intact synapses in AD models — synaptic loss begins before plaques mature.',
+    pmids: [] },
+
+  // --- HD astrocyte excitotoxicity axis ---
+  { from: 'HTT', to: 'SLC1A2', kind: 'opposes', strength: 0.75,
+    note: 'mHTT expression in astrocytes downregulates SLC1A2/EAAT2/GLT-1 glutamate transporter, impairing synaptic glutamate clearance and driving excitotoxic striatal neuron death in HD.',
+    pmids: [] },
+
+  // --- Mitochondrial dynamics in AD/HD (Aβ → Drp1 fragmentation; TDP-43 → expression changes) ---
+  { from: 'DNM1L', to: 'APP', kind: 'shared-mechanism', strength: 0.7,
+    note: 'Aβ enhances Drp1 recruitment to the outer mitochondrial membrane (via Fis1/Mff/MiD49/51), driving excessive mitochondrial fragmentation, ATP deficits, and dendritic spine loss in AD.',
+    pmids: [] },
+  { from: 'DNM1L', to: 'HTT', kind: 'shared-mechanism', strength: 0.65,
+    note: 'mHTT aberrantly interacts with Drp1 and other fission/fusion machinery, causing fragmentation, transport defects, and corticostriatal synaptic energy failure.',
+    pmids: [] },
+  { from: 'TARDBP', to: 'MFN2', kind: 'opposes', strength: 0.65,
+    note: 'TDP-43 aggregation alters Mfn2 expression and disrupts mitochondrial fusion in ALS axons; combines with direct TDP-43 association with mitochondria.',
+    pmids: [] },
+  { from: 'TARDBP', to: 'OPA1', kind: 'opposes', strength: 0.6,
+    note: 'TDP-43 aggregation alters OPA1 expression, perturbing inner-membrane fusion and cristae shaping in ALS.',
+    pmids: [] },
+
+  // --- ATP13A2 ↔ LRRK2 lysosomal-biogenesis PD ---
+  { from: 'ATP13A2', to: 'LRRK2', kind: 'shared-mechanism', strength: 0.55,
+    note: 'Both ATP13A2 (lysosomal P-type ATPase) and LRRK2 (kinase regulating Rab10/Rab8) perturb lysosomal biogenesis and trafficking when mutated, converging on autophagic flux in PD.',
+    pmids: [] },
+
+  // --- BECN1 autophagy initiation — reduced/dysregulated across multiple NDs ---
+  { from: 'BECN1', to: 'APP', kind: 'shared-mechanism', strength: 0.7,
+    note: 'Beclin-1 expression is reduced in AD brain; restoring BECN1 enhances autophagic Aβ clearance.',
+    pmids: [] },
+  { from: 'BECN1', to: 'SNCA', kind: 'shared-mechanism', strength: 0.6,
+    note: 'BECN1 overexpression rescues α-synuclein-induced neurodegeneration; loss of BECN1-mediated autophagy initiation impairs αSyn clearance in PD.',
+    pmids: [] },
+  { from: 'BECN1', to: 'HTT', kind: 'shared-mechanism', strength: 0.55,
+    note: 'mHTT impairs Beclin-1 availability for autophagy initiation; restoring BECN1 reduces aggregate load in HD models.',
+    pmids: [] },
+  { from: 'BECN1', to: 'TFEB', kind: 'complex', strength: 0.7,
+    note: 'Both upstream regulators of the autophagy-lysosomal pathway; TFEB activation increases autophagosome biogenesis (BECN1 complex) AND lysosomal CLEAR-network output.',
+    pmids: [] },
 
   // ===== Expanded lysosomal edges =====
   { from: 'TFEB', to: 'LAMP1', kind: 'kinase-substrate', strength: 0.9,

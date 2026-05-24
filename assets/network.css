@@ -27,31 +27,46 @@
   --canvas-glow: rgba(86, 177, 255, 0.06);
 }
 
-/* Light-theme override. Token set mirrors the rest of bioscope-web
- * (index/ask/train pages) so the visual language is consistent when
- * the user prefers light mode. */
+/* Light-theme override — adopts the arminbayati.com palette so when the
+ * SME flips to light mode the network reads as part of the personal site
+ * (warm paper background, crimson accent, DM Serif Display / IBM Plex). */
 [data-theme="light"] {
-  --bg: #ffffff;
-  --bg-2: #f7f9fb;
-  --panel: #ffffff;
-  --panel-2: #f0f4f8;
-  --ink: #14202b;
-  --ink-soft: #3a4a5c;
-  --mute: #6a7787;
-  --rule: #e3e8ee;
-  --rule-strong: #cdd6e0;
-  --accent: #0b3b5a;
-  --accent-soft: #e6eef5;
+  --bg: #fafaf7;            /* arminbayati paper */
+  --bg-2: #f4f3ef;          /* arminbayati section-bg */
+  --panel: #ffffff;          /* arminbayati card */
+  --panel-2: #f4f3ef;
+  --ink: #0f1419;            /* arminbayati ink */
+  --ink-soft: #1f2937;
+  --mute: #6b7280;           /* arminbayati mid */
+  --rule: #d4d0c8;           /* arminbayati warm rule */
+  --rule-strong: #b8b2a6;
+  --accent: #c0392b;         /* arminbayati crimson */
+  --accent-soft: #e74c3c20;
   --gold: #b45309;
-  --gold-soft: #fff7d6;
+  --gold-soft: #fff5d6;
   --ok: #15803d;
   --ok-soft: #dcfce7;
   --warn: #b45309;
   --danger: #b91c1c;
   --danger-soft: #fee2e2;
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-2: 0 12px 36px rgba(0, 0, 0, 0.10);
-  --canvas-glow: rgba(11, 59, 90, 0.04);
+  --shadow-1: 0 1px 2px rgba(15, 20, 25, 0.06);
+  --shadow-2: 0 12px 36px rgba(15, 20, 25, 0.10);
+  --canvas-glow: rgba(192, 57, 43, 0.04);
+}
+
+/* Brand fonts in light mode — match arminbayati.com */
+[data-theme="light"] body {
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+[data-theme="light"] code,
+[data-theme="light"] .mono,
+[data-theme="light"] .node-label {
+  font-family: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
+}
+[data-theme="light"] .brand .logo,
+[data-theme="light"] .panel h2,
+[data-theme="light"] .help-overlay h4 {
+  font-family: 'DM Serif Display', Georgia, serif;
 }
 
 * { box-sizing: border-box; }
@@ -75,6 +90,18 @@ header.site {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+/* In light mode the header uses the paper palette so the body and header
+ * read as a single page rather than dark-on-light strip. */
+[data-theme="light"] header.site {
+  background: linear-gradient(180deg, rgba(250, 250, 247, 0.96) 0%, rgba(250, 250, 247, 0.82) 100%);
+  border-bottom-color: var(--rule);
+}
+[data-theme="light"] header.site .brand,
+[data-theme="light"] header.site .brand a {
+  color: var(--ink);
+}
+[data-theme="light"] nav.site-nav a { color: var(--ink-soft); }
+[data-theme="light"] nav.site-nav a:hover { color: var(--accent); }
 header.site .row {
   display: flex; align-items: center; gap: 14px;
   padding: 10px 18px; flex-wrap: wrap;

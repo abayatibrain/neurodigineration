@@ -685,6 +685,26 @@ const DEFAULT_GENE_PANEL = [
   { symbol: 'NDUFS1', aliases: ['CI-75kD'], notes: 'Core subunit of mitochondrial Complex I — Leigh syndrome when lost; Complex I deficiency is a defining feature of PD substantia nigra.',
     expectTokens: ['NDUFS1', 'P28331', 'Complex I', 'mitochondri', 'Leigh'] },
 
+  // ===== Round 3 — from Bayati & Chen review =====
+  { symbol: 'CD63',   aliases: ['LAMP3', 'TSPAN30'], notes: 'Tetraspanin lysosomal/late-endosomal membrane protein; LAMP family; trafficking and PD-relevant lysosomal biology.',
+    expectTokens: ['CD63', 'P08962', 'lysosom', 'tetraspanin', 'parkinson'] },
+  { symbol: 'TMEM175', aliases: [], notes: 'Lysosomal K+ channel; loss reduces lysosomal enzymatic activity; GWAS-identified PD risk locus that intersects with GBA biology.',
+    expectTokens: ['TMEM175', 'Q9BSA9', 'lysosom', 'parkinson', 'potassium'] },
+  { symbol: 'UBE3A', aliases: ['E6-AP', 'AS'], notes: 'E3 ubiquitin ligase; loss-of-function causes Angelman syndrome; central to synaptic protein turnover and UPS.',
+    expectTokens: ['UBE3A', 'Q05086', 'Angelman', 'ubiquitin', 'synaptic'] },
+  { symbol: 'ATG9A', aliases: ['APG9L1'], notes: 'Autophagy-related 9A; the only multi-spanning membrane ATG protein; lipid scramblase that seeds the autophagosome; mislocalised when αSyn aggregates.',
+    expectTokens: ['ATG9A', 'Q7Z3C6', 'autophagy', 'autophagosome'] },
+  { symbol: 'RAB1A', aliases: ['YPT1'], notes: 'Small GTPase regulating ER-Golgi trafficking and autophagosome biogenesis; mislocalisation by αSyn impairs autophagy initiation.',
+    expectTokens: ['RAB1A', 'P62820', 'autophagy', 'trafficking', 'parkinson'] },
+  { symbol: 'C1QA',  aliases: ['C1Q'],  notes: 'Complement C1q subunit A; tags synapses for microglial phagocytosis; upregulated on AD synapses and drives complement-mediated synaptic pruning.',
+    expectTokens: ['C1QA', 'P02745', 'complement', 'microglia', 'synaptic pruning'] },
+  { symbol: 'C3',    aliases: [], notes: 'Complement C3; downstream of C1q in classical pathway; tags synapses for microglial removal; AD and frontotemporal pathology.',
+    expectTokens: ['C3', 'P01024', 'complement', 'microglia', 'synaptic pruning'] },
+  { symbol: 'ATP6V0A1', aliases: ['VPP1', 'ATP6N1'], notes: 'V-ATPase V0 a1 subunit; lysosomal acidification; PSEN1 mutations impair its assembly, disrupting lysosomal pH in familial AD.',
+    expectTokens: ['ATP6V0A1', 'Q93050', 'v-ATPase', 'lysosom', 'alzheimer'] },
+  { symbol: 'SLC1A2', aliases: ['EAAT2', 'GLT-1'], notes: 'Glial glutamate transporter 1 (EAAT2/GLT-1); clears synaptic glutamate; mHTT in astrocytes reduces SLC1A2, driving excitotoxic striatal degeneration in HD.',
+    expectTokens: ['EAAT2', 'P43004', 'GLT-1', 'glutamate', 'huntington'] },
+
   // ===== Group J — FTD modifiers & brain-iron accumulation =====
   {
     symbol: 'TMEM106B',

@@ -456,20 +456,19 @@ function renderPanelForEdge(d) {
   note.appendChild(el('p', {}, d.note || '(no description supplied)'));
   host.appendChild(note);
 
-  // Citations
+  // Sources — for now we link to the NCBI Gene records for both genes
+  // rather than per-claim PMIDs. The PMIDs in the data are placeholders
+  // pending SME validation; surfacing them as authoritative would be
+  // misleading. NCBI Gene gives the SME a quick way to verify the gene
+  // identity and follow into its literature themselves.
+  const ncbiUrl = (sym) => `https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(sym)}%5BGene+Symbol%5D+AND+human%5BOrganism%5D`;
   const cit = el('section', { class: 'block' });
-  cit.appendChild(el('h3', {}, `Citations (${(d.pmids || []).length})`));
-  if (d.pmids && d.pmids.length) {
-    const ul = el('ul');
-    for (const p of d.pmids) {
-      ul.appendChild(
-        el('li', {}, el('a', { href: `https://pubmed.ncbi.nlm.nih.gov/${p}/`, target: '_blank', rel: 'noopener' }, `PMID:${p}`)),
-      );
-    }
-    cit.appendChild(ul);
-  } else {
-    cit.appendChild(el('p', {}, 'No citations attached. If you confirm this connection, rate it ≥ 4/5 below; if not, mark it invalid.'));
-  }
+  cit.appendChild(el('h3', {}, 'Sources'));
+  cit.appendChild(el('p', {}, 'Per-claim PMIDs need SME validation (deferred). For now, jump to NCBI Gene for either gene to verify identity and explore literature.'));
+  const ul = el('ul');
+  ul.appendChild(el('li', {}, el('a', { href: ncbiUrl(d.source.id), target: '_blank', rel: 'noopener' }, `NCBI Gene: ${d.source.id}`)));
+  ul.appendChild(el('li', {}, el('a', { href: ncbiUrl(d.target.id), target: '_blank', rel: 'noopener' }, `NCBI Gene: ${d.target.id}`)));
+  cit.appendChild(ul);
   host.appendChild(cit);
 
   // Edge rating block
@@ -581,18 +580,22 @@ function renderHeaderStatus() {
 function renderFilters() {
   const host = $('#disease-filters');
   host.innerHTML = '';
-  const mk = (key, label, color, soft) => {
+  // Disease colors are mostly dark/saturated, so the active chip uses
+  // white text on the colored bg in both themes. The "All" chip uses
+  // the current accent.
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#56b1ff';
+  const mk = (key, label, color) => {
     const b = el('button', {
       style: state.activeFilter === key
-        ? `background:${color};color:${color === '#6a7787' ? '#fff' : (key === 'ALL' ? '#0b0f14' : '#0b0f14')};`
+        ? `background:${color};color:#ffffff;border-color:transparent;font-weight:600;`
         : '',
       onClick: () => { state.activeFilter = key; renderFilters(); applyFilter(); },
     }, label);
     if (state.activeFilter === key) b.classList.add('active');
     host.appendChild(b);
   };
-  mk('ALL', 'All', '#56b1ff', '');
-  for (const [key, d] of Object.entries(DISEASES)) mk(key, d.name, d.color, d.soft);
+  mk('ALL', 'All', accent);
+  for (const [key, d] of Object.entries(DISEASES)) mk(key, d.name, d.color);
 }
 
 function applyFilter() {

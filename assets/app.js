@@ -958,14 +958,14 @@ function renderConnProposal() {
       <span style="margin-left: auto; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; background: ${color}22; color: ${color};">${escape(p.kind)}</span>
     </div>
     <p style="margin: 0 0 12px; color: var(--ink-soft);">${escape(p.note) || '<em>(no description)</em>'}</p>
-    ${(p.pmids && p.pmids.length) ? `
-      <div style="border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 8px;">
-        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mute); margin-bottom: 4px;">Citations</div>
-        <ul style="margin: 0; padding-left: 18px;">
-          ${p.pmids.map((id) => `<li style="font-size: 12.5px;"><a href="https://pubmed.ncbi.nlm.nih.gov/${escape(id)}/" target="_blank" rel="noopener" style="font-family: 'SF Mono', monospace;">PMID:${escape(id)}</a></li>`).join('')}
-        </ul>
-      </div>
-    ` : `<div style="font-size: 12.5px; color: var(--mute); font-style: italic; padding-top: 8px; border-top: 1px solid var(--rule);">No citations supplied — penalise on Citation★ if you confirm this connection.</div>`}
+    <div style="border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 8px;">
+      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mute); margin-bottom: 4px;">Sources</div>
+      <div style="font-size: 12px; color: var(--mute); margin-bottom: 4px;">Per-claim PMIDs need SME validation — for now, verify gene identity on NCBI:</div>
+      <ul style="margin: 0; padding-left: 18px;">
+        <li style="font-size: 12.5px;"><a href="https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(p.from)}%5BGene+Symbol%5D+AND+human%5BOrganism%5D" target="_blank" rel="noopener" style="font-family: 'SF Mono', monospace;">NCBI Gene: ${escape(p.from)}</a></li>
+        <li style="font-size: 12.5px;"><a href="https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(p.to)}%5BGene+Symbol%5D+AND+human%5BOrganism%5D" target="_blank" rel="noopener" style="font-family: 'SF Mono', monospace;">NCBI Gene: ${escape(p.to)}</a></li>
+      </ul>
+    </div>
     <div style="margin-top: 10px; font-size: 11px; color: var(--mute);">Source: ${escape(p.source)}${p.usage ? ` · ${p.usage.input_tokens || 0}/${p.usage.output_tokens || 0} tokens` : ''}</div>
   `;
   rate.style.display = '';
