@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>bioscope — AI cell-biology research briefs</title>
+  <meta name="description" content="Type a human gene symbol. Get a research-grade brief composed live from UniProt, NCBI, Ensembl, and Reactome." />
+  <meta name="theme-color" content="#0b3b5a" />
+  <meta property="og:title" content="bioscope — AI cell-biology research briefs" />
+  <meta property="og:description" content="Type a human gene symbol. Get a research-grade brief composed live from UniProt, NCBI, Ensembl, and Reactome." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%230b3b5a'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='white'>b</text></svg>" />
+  <style>
+    :root {
+      --ink: #14202b;
+      --ink-soft: #3a4a5c;
+      --mute: #6a7787;
+      --rule: #e3e8ee;
+      --panel: #f7f9fb;
+      --accent: #0b3b5a;
+      --accent-soft: #e6eef5;
+      --warn: #b54708;
+      --warn-soft: #fff4e5;
+      --ok: #155724;
+      --bg: #ffffff;
+      --max: 980px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, .mono { font-family: "SF Mono", Menlo, Consolas, "Roboto Mono", monospace; font-size: 0.93em; }
+    .container { max-width: var(--max); margin: 0 auto; padding: 28px 22px 80px; }
+
+    /* ===== Header ===== */
+    header.site {
+      border-bottom: 1px solid var(--rule);
+      background: var(--bg);
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: saturate(180%) blur(8px);
+      -webkit-backdrop-filter: saturate(180%) blur(8px);
+    }
+    header.site .container { padding-top: 14px; padding-bottom: 14px; display: flex; align-items: center; gap: 14px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+    .brand .logo {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--accent);
+      color: white; display: grid; place-items: center;
+      font-family: Georgia, serif; font-weight: 700; font-size: 18px; line-height: 1;
+    }
+    .brand .name { font-size: 18px; }
+    .brand .name em { font-style: normal; color: var(--mute); font-weight: 500; font-size: 13px; margin-left: 6px; }
+    nav.site-nav { margin-left: auto; display: flex; gap: 18px; font-size: 14px; }
+    nav.site-nav a { color: var(--ink-soft); }
+    nav.site-nav a:hover { color: var(--accent); }
+
+    /* ===== Hero ===== */
+    .hero { padding-top: 28px; padding-bottom: 12px; }
+    .hero h1 {
+      font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+      font-weight: 600;
+      font-size: clamp(28px, 4.2vw, 40px);
+      line-height: 1.15;
+      margin: 0 0 10px;
+      letter-spacing: -0.01em;
+    }
+    .hero p.lede {
+      color: var(--ink-soft);
+      font-size: 17px;
+      max-width: 64ch;
+      margin: 0 0 22px;
+    }
+    .hero .sources {
+      color: var(--mute);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    /* ===== Search ===== */
+    form.q {
+      display: flex; gap: 8px; align-items: stretch;
+      margin: 6px 0 14px;
+    }
+    form.q input[type="text"] {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      font-size: 16px;
+      color: var(--ink);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    form.q input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    form.q button {
+      padding: 12px 18px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    form.q button:hover { background: #0a324d; }
+    form.q button:disabled { background: var(--mute); border-color: var(--mute); cursor: progress; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 28px; }
+    .chips .label { color: var(--mute); font-size: 13px; margin-right: 4px; align-self: center; }
+    .chip {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      padding: 4px 10px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--ink-soft);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+    /* ===== Brief layout ===== */
+    .brief { display: grid; gap: 22px; }
+    .brief.hidden { display: none; }
+
+    .title-block {
+      display: flex; align-items: baseline; flex-wrap: wrap; gap: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .title-block .gene {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-style: italic;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.01em;
+    }
+    .title-block .protein {
+      font-family: Georgia, serif;
+      font-size: 22px;
+      color: var(--ink);
+    }
+    .title-block .organism {
+      font-style: italic;
+      color: var(--mute);
+      font-size: 14px;
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 14px;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+    }
+    .fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .fact .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mute); }
+    .fact .v { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+    .fact .v a { font-family: inherit; }
+
+    section.card {
+      padding: 4px 0;
+    }
+    section.card h2 {
+      font-family: Georgia, serif;
+      font-size: 19px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: var(--ink);
+      display: flex; align-items: center; gap: 10px;
+    }
+    section.card h2 .src {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 11.5px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--mute);
+      padding: 2px 8px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--bg);
+    }
+    section.card .body p { margin: 0 0 8px; color: var(--ink-soft); }
+    section.card .body p:last-child { margin-bottom: 0; }
+
+    ul.list { list-style: none; padding: 0; margin: 4px 0 0; }
+    ul.list li {
+      padding: 10px 0;
+      border-top: 1px solid var(--rule);
+    }
+    ul.list li:first-child { border-top: 0; padding-top: 4px; }
+    ul.list .row1 { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+    ul.list .row1 .id {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--mute);
+    }
+    ul.list .row1 .title {
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    ul.list .row2 {
+      margin-top: 4px;
+      color: var(--mute);
+      font-size: 13px;
+    }
+    ul.list .row2 .journal { font-style: italic; }
+
+    /* ===== States ===== */
+    .skeleton {
+      background: linear-gradient(90deg, var(--panel) 0%, #eef2f6 50%, var(--panel) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s linear infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .sk-line { height: 14px; margin: 8px 0; }
+    .sk-line.w70 { width: 70%; }
+    .sk-line.w50 { width: 50%; }
+    .sk-line.w90 { width: 90%; }
+    .sk-block { height: 80px; margin: 12px 0; }
+
+    .notice {
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      border: 1px solid var(--rule);
+      background: var(--panel);
+      color: var(--ink-soft);
+    }
+    .notice.warn { background: var(--warn-soft); border-color: #f5cba7; color: var(--warn); }
+    .notice strong { color: inherit; }
+
+    /* ===== About / Footer ===== */
+    section.about {
+      margin-top: 56px;
+      padding-top: 28px;
+      border-top: 1px solid var(--rule);
+    }
+    section.about h2 {
+      font-family: Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+      margin: 0 0 10px;
+    }
+    section.about p { color: var(--ink-soft); max-width: 72ch; }
+    section.about .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+    section.about .grid .item {
+      padding: 14px;
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    section.about .grid .item h3 {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      letter-spacing: -0.01em;
+      color: var(--accent);
+    }
+    section.about .grid .item p { margin: 0; font-size: 13.5px; }
+
+    footer.site {
+      margin-top: 64px;
+      padding: 22px 0;
+      border-top: 1px solid var(--rule);
+      color: var(--mute);
+      font-size: 13px;
+      display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+    }
+    footer.site .who { flex: 1; min-width: 220px; }
+    footer.site .built { color: var(--mute); }
+    footer.site a { color: var(--ink-soft); }
+
+    .ai-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 9px;
+      font-size: 11.5px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .ai-pill::before {
+      content: "";
+      width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
+    }
+
+    @media (max-width: 600px) {
+      .title-block .gene { font-size: 26px; }
+      .title-block .protein { font-size: 18px; }
+      form.q { flex-direction: column; }
+      form.q button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="site">
+  <div class="container">
+    <a class="brand" href="./">
+      <span class="logo">b</span>
+      <span class="name">bioscope<em>cell-biology research briefs</em></span>
+    </a>
+    <nav class="site-nav">
+      <a href="#about">How it works</a>
+      <a href="https://github.com/abayatibrain/bioscope-web" id="repo-link">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <span class="ai-pill">Built with Claude Code</span>
+    <h1 style="margin-top:12px">A research-grade gene brief, composed live from four public bio APIs.</h1>
+    <p class="lede">
+      Type a human gene symbol. <strong>bioscope</strong> queries UniProt, NCBI E-utilities,
+      Ensembl REST, and Reactome in parallel and renders a structured brief —
+      protein function, gene metadata, pathway membership, and the most recent literature —
+      in the time it takes you to read this sentence.
+    </p>
+
+    <form class="q" id="search-form" autocomplete="off">
+      <input
+        type="text"
+        id="q"
+        placeholder="Gene symbol  e.g.  SNCA, LRRK2, TP53"
+        spellcheck="false"
+        autocorrect="off"
+        autocapitalize="characters"
+        aria-label="Gene symbol"
+      />
+      <button type="submit" id="go">Generate brief</button>
+    </form>
+
+    <div class="chips" aria-label="Example gene symbols">
+      <span class="label">Try</span>
+      <button class="chip" data-q="SNCA">SNCA</button>
+      <button class="chip" data-q="LRRK2">LRRK2</button>
+      <button class="chip" data-q="PRKN">PRKN</button>
+      <button class="chip" data-q="GBA">GBA</button>
+      <button class="chip" data-q="TH">TH</button>
+      <button class="chip" data-q="APOE">APOE</button>
+      <button class="chip" data-q="MAPT">MAPT</button>
+      <button class="chip" data-q="ATXN2">ATXN2</button>
+      <button class="chip" data-q="TP53">TP53</button>
+    </div>
+
+    <p class="sources">
+      Sources: <a href="https://www.uniprot.org/" target="_blank" rel="noopener">UniProt</a> ·
+      <a href="https://www.ncbi.nlm.nih.gov/home/develop/api/" target="_blank" rel="noopener">NCBI E-utilities</a> ·
+      <a href="https://rest.ensembl.org/" target="_blank" rel="noopener">Ensembl REST</a> ·
+      <a href="https://reactome.org/ContentService/" target="_blank" rel="noopener">Reactome ContentService</a>
+    </p>
+  </section>
+
+  <section class="brief hidden" id="brief" aria-live="polite"></section>
+
+  <section class="about" id="about">
+    <h2>How this works</h2>
+    <p>
+      <strong>bioscope-web</strong> is the browser-native sibling of
+      <a href="https://github.com/abayatibrain/bioscope" id="cli-link">bioscope</a>,
+      a TypeScript CLI that wraps the same four public bioinformatics APIs in a
+      Model Context Protocol (MCP) server for Claude Code. The web app does no
+      caching, no server-side aggregation, and no LLM inference at request time —
+      every section you see is composed live from the same primary sources a
+      working bench scientist would cite.
+    </p>
+    <div class="grid">
+      <div class="item">
+        <h3>UniProt</h3>
+        <p>Reviewed (Swiss-Prot) entry for the protein: function, length, accession.</p>
+      </div>
+      <div class="item">
+        <h3>NCBI E-utilities</h3>
+        <p>Gene record from Entrez Gene plus the five most recent PubMed citations.</p>
+      </div>
+      <div class="item">
+        <h3>Ensembl REST</h3>
+        <p>Canonical Ensembl gene metadata: biotype, assembly, chromosome, strand.</p>
+      </div>
+      <div class="item">
+        <h3>Reactome</h3>
+        <p>Curated human pathway membership, mapped from the UniProt accession.</p>
+      </div>
+    </div>
+    <p style="margin-top:18px">
+      Built with Claude Code on top of the
+      <a href="https://github.com/abayatibrain/bioscope" id="cli-link-2">bioscope</a>
+      design. The full agent version exposes seven tools across these same APIs via MCP,
+      with custom slash commands, scoped sub-agents, pre/post tool-use hooks, and a
+      Claude Agent SDK headless build for batch runs.
+    </p>
+  </section>
+
+  <footer class="site">
+    <div class="who">
+      Made by <a href="https://arminbayati.com" target="_blank" rel="noopener">Armin Bayati</a>
+      &middot;
+      <a href="https://github.com/abayatibrain/bioscope-web" id="repo-link-2">source</a>
+    </div>
+    <div class="built">No backend. No tracking. Static HTML + four CORS-enabled public APIs.</div>
+  </footer>
+
+</main>
+
+<script>
+"use strict";
+
+/* ============================================================
+ * bioscope-web — single-page client over UniProt / NCBI / Ensembl / Reactome
+ * No build step, no backend, no dependencies. ES2017+.
+ * ============================================================ */
+
+/** Endpoints we hit. All four return Access-Control-Allow-Origin: *. */
+const API = {
+  uniprotSearch: (sym) =>
+    `https://rest.uniprot.org/uniprotkb/search?` +
+    `query=${encodeURIComponent(`gene:${sym} AND organism_id:9606 AND reviewed:true`)}` +
+    `&format=json&size=1`,
+  ncbiGeneSearch: (sym) =>
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?` +
+    `db=gene&term=${encodeURIComponent(`${sym}[sym] AND human[orgn]`)}&retmode=json`,
+  ncbiGeneSummary: (uid) =>
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gene&id=${uid}&retmode=json`,
+  pubmedSearch: (sym) =>
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?` +
+    `db=pubmed&term=${encodeURIComponent(`${sym}[gene] AND english[lang]`)}` +
+    `&sort=date&retmax=5&retmode=json`,
+  pubmedSummary: (ids) =>
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${ids.join(",")}&retmode=json`,
+  ensemblLookup: (sym) =>
+    `https://rest.ensembl.org/lookup/symbol/homo_sapiens/${encodeURIComponent(sym)}?expand=0`,
+  reactomePathways: (acc) =>
+    `https://reactome.org/ContentService/data/mapping/UniProt/${encodeURIComponent(acc)}/pathways?species=9606`,
+};
+
+/** Outbound links to authoritative pages. */
+const LINK = {
+  uniprot: (acc) => `https://www.uniprot.org/uniprotkb/${acc}/entry`,
+  ensembl: (id)  => `https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${id}`,
+  ncbiGene: (uid)=> `https://www.ncbi.nlm.nih.gov/gene/${uid}`,
+  pubmed: (pmid) => `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+  reactome: (st) => `https://reactome.org/PathwayBrowser/#/${st}`,
+  hgncSearch: (sym) => `https://www.genenames.org/tools/search/#!/?query=${encodeURIComponent(sym)}`,
+};
+
+/** Normalize a user-typed gene symbol. */
+function cleanSymbol(s) {
+  return (s || "").trim().toUpperCase().replace(/[^A-Z0-9\-]/g, "");
+}
+
+/* ---------- Throttled fetch with 429 retry ---------------------------
+ * NCBI E-utilities rate-limits anonymous IPs to 3 req/sec. We throttle
+ * per-host: NCBI hosts get a 400 ms slot, every other host runs immediately.
+ * On 429 or 503 we retry once with backoff before surfacing the error. */
+function makeQueue(spacingMs) {
+  let chain = Promise.resolve();
+  return function enqueue(task) {
+    const out = chain.then(task);
+    chain = out.then(() => new Promise(r => setTimeout(r, spacingMs)), () => new Promise(r => setTimeout(r, spacingMs)));
+    return out;
+  };
+}
+const NCBI_QUEUE = makeQueue(400);
+
+function isThrottledHost(url) {
+  return url.includes("eutils.ncbi.nlm.nih.gov");
+}
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+/** JSON fetch with a timeout, host-aware throttle, and retry on 429/503. */
+async function getJSON(url, { timeout = 15000, retries = 2 } = {}) {
+  const exec = async () => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeout);
+      try {
+        const r = await fetch(url, {
+          signal: ctrl.signal,
+          headers: { "Accept": "application/json" },
+        });
+        if (r.status === 429 || r.status === 503) {
+          if (attempt < retries) { await sleep(700 * Math.pow(2, attempt)); continue; }
+        }
+        if (!r.ok) {
+          const text = await r.text().catch(() => "");
+          throw new Error(`HTTP ${r.status} ${r.statusText} — ${text.slice(0,120)}`);
+        }
+        return await r.json();
+      } finally {
+        clearTimeout(t);
+      }
+    }
+    throw new Error("retries exhausted");
+  };
+  return isThrottledHost(url) ? NCBI_QUEUE(exec) : exec();
+}
+
+/** Wrap a promise so .all() never short-circuits. */
+function settle(p) {
+  return p.then(value => ({ ok: true, value }), error => ({ ok: false, error }));
+}
+
+/* ---------- Parsers (one per API). Tolerant of missing fields. ---------- */
+
+function parseUniProt(j) {
+  const r = (j && j.results && j.results[0]) || null;
+  if (!r) return null;
+  const fn = (r.comments || []).filter(c => c.commentType === "FUNCTION");
+  const functionText = fn.length && fn[0].texts && fn[0].texts[0]
+    ? fn[0].texts[0].value : null;
+  const subloc = (r.comments || []).filter(c => c.commentType === "SUBCELLULAR LOCATION");
+  const sublocText = subloc.length && subloc[0].subcellularLocations
+    ? subloc[0].subcellularLocations
+        .map(s => (s.location && s.location.value) || "")
+        .filter(Boolean).join("; ")
+    : null;
+  return {
+    accession: r.primaryAccession || null,
+    entryName: r.uniProtkbId || null,
+    proteinName: ((r.proteinDescription || {}).recommendedName || {}).fullName
+      ? r.proteinDescription.recommendedName.fullName.value : null,
+    geneNames: (r.genes || []).map(g => (g.geneName || {}).value).filter(Boolean),
+    length: (r.sequence || {}).length || null,
+    organism: (r.organism || {}).scientificName || null,
+    function: functionText,
+    subcellular: sublocText,
+  };
+}
+
+function parseNcbiGene(j, uid) {
+  const r = j && j.result && j.result[uid];
+  if (!r) return null;
+  return {
+    uid,
+    name: r.name || null,
+    description: r.description || null,
+    summary: r.summary || null,
+    chromosome: r.chromosome || null,
+    maplocation: r.maplocation || null,
+    aliases: (r.otheraliases || "").split(/,\s*/).filter(Boolean),
+    organism: (r.organism && r.organism.scientificname) || null,
+  };
+}
+
+function parsePubMedSummaries(j) {
+  if (!j || !j.result) return [];
+  const uids = j.result.uids || [];
+  return uids.map(uid => {
+    const r = j.result[uid] || {};
+    const authors = (r.authors || []).map(a => a.name).filter(Boolean);
+    return {
+      pmid: uid,
+      title: r.title || "",
+      journal: r.source || "",
+      pubdate: r.pubdate || "",
+      authors,
+      doi: extractDoi(r.elocationid || "", r.articleids || []),
+    };
+  });
+}
+
+function extractDoi(elocationid, articleids) {
+  const m = (elocationid || "").match(/10\.\d{4,9}\/\S+/);
+  if (m) return m[0];
+  for (const a of (articleids || [])) {
+    if ((a.idtype || "").toLowerCase() === "doi" && a.value) return a.value;
+  }
+  return null;
+}
+
+function parseEnsembl(j) {
+  if (!j || j.error) return null;
+  return {
+    id: j.id || null,
+    biotype: j.biotype || null,
+    assembly: j.assembly_name || null,
+    chr: j.seq_region_name || null,
+    start: j.start || null,
+    end: j.end || null,
+    strand: j.strand || null,
+    canonicalTranscript: j.canonical_transcript || null,
+    description: j.description || null,
+  };
+}
+
+function parseReactome(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(p => ({
+    stId: p.stId,
+    name: p.displayName,
+    species: (p.species && p.species[0] && p.species[0].displayName) || null,
+  })).filter(p => p.stId && p.name);
+}
+
+/* ---------- Pipeline ---------- */
+
+async function fetchBrief(sym) {
+  // 1) Fire UniProt, NCBI gene-search, Ensembl, PubMed-search in parallel.
+  const [uniRes, ncbiSearchRes, ensRes, pmSearchRes] = await Promise.all([
+    settle(getJSON(API.uniprotSearch(sym))),
+    settle(getJSON(API.ncbiGeneSearch(sym))),
+    settle(getJSON(API.ensemblLookup(sym))),
+    settle(getJSON(API.pubmedSearch(sym))),
+  ]);
+
+  const uniprot = uniRes.ok ? parseUniProt(uniRes.value) : null;
+  const ensembl = ensRes.ok ? parseEnsembl(ensRes.value) : null;
+
+  // 2) Dependent calls based on results from step 1.
+  let geneUid = null;
+  if (ncbiSearchRes.ok) {
+    const idlist = ((ncbiSearchRes.value || {}).esearchresult || {}).idlist || [];
+    geneUid = idlist[0] || null;
+  }
+  let pmIds = [];
+  if (pmSearchRes.ok) {
+    pmIds = ((pmSearchRes.value || {}).esearchresult || {}).idlist || [];
+  }
+
+  const [geneSumRes, pmSumRes, pathRes] = await Promise.all([
+    geneUid ? settle(getJSON(API.ncbiGeneSummary(geneUid))) : Promise.resolve({ ok: true, value: null }),
+    pmIds.length ? settle(getJSON(API.pubmedSummary(pmIds))) : Promise.resolve({ ok: true, value: null }),
+    uniprot && uniprot.accession
+      ? settle(getJSON(API.reactomePathways(uniprot.accession)))
+      : Promise.resolve({ ok: true, value: [] }),
+  ]);
+
+  const gene = (geneSumRes.ok && geneSumRes.value && geneUid)
+    ? parseNcbiGene(geneSumRes.value, geneUid) : null;
+  const pubmed = (pmSumRes.ok && pmSumRes.value) ? parsePubMedSummaries(pmSumRes.value) : [];
+  const pathways = pathRes.ok ? parseReactome(pathRes.value || []) : [];
+
+  return {
+    query: sym,
+    uniprot,
+    gene,
+    ensembl,
+    pubmed,
+    pathways,
+    errors: {
+      uniprot: uniRes.ok ? null : String(uniRes.error || ""),
+      ncbi:    ncbiSearchRes.ok ? null : String(ncbiSearchRes.error || ""),
+      ensembl: ensRes.ok ? null : String(ensRes.error || ""),
+      pubmed:  pmSearchRes.ok ? null : String(pmSearchRes.error || ""),
+      gene:    geneSumRes.ok ? null : String(geneSumRes.error || ""),
+      pmsum:   pmSumRes.ok ? null : String(pmSumRes.error || ""),
+      reactome: pathRes.ok ? null : String(pathRes.error || ""),
+    },
+  };
+}
+
+/* ---------- Rendering ---------- */
+
+const briefEl = document.getElementById("brief");
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderSkeleton(sym) {
+  briefEl.classList.remove("hidden");
+  briefEl.innerHTML = `
+    <div class="title-block">
+      <span class="gene">${esc(sym)}</span>
+      <span class="protein" style="color: var(--mute)">Composing brief from public bio APIs…</span>
+    </div>
+    <div class="facts">
+      ${Array.from({length: 4}).map(() => `
+        <div class="fact">
+          <div class="k skeleton" style="height:10px;width:60px"></div>
+          <div class="v skeleton" style="height:14px;width:120px;margin-top:6px"></div>
+        </div>
+      `).join("")}
+    </div>
+    <section class="card">
+      <h2>Protein function <span class="src">UniProt</span></h2>
+      <div class="sk-line skeleton w90"></div>
+      <div class="sk-line skeleton w70"></div>
+      <div class="sk-line skeleton w50"></div>
+    </section>
+    <section class="card">
+      <h2>Gene summary <span class="src">NCBI</span></h2>
+      <div class="sk-line skeleton w90"></div>
+      <div class="sk-line skeleton w70"></div>
+    </section>
+    <section class="card">
+      <h2>Pathway membership <span class="src">Reactome</span></h2>
+      <div class="sk-block skeleton"></div>
+    </section>
+    <section class="card">
+      <h2>Recent literature <span class="src">PubMed</span></h2>
+      <div class="sk-block skeleton"></div>
+    </section>
+  `;
+}
+
+function notFoundView(sym) {
+  briefEl.innerHTML = `
+    <div class="notice warn">
+      <strong>No reviewed human entry found for <code>${esc(sym)}</code>.</strong>
+      bioscope looks up <em>Homo sapiens</em> symbols in Swiss-Prot (reviewed UniProt) and Entrez Gene.
+      Double-check the symbol — for example, ${esc(sym)} might be an alias.
+      Try <a href="${LINK.hgncSearch(sym)}" target="_blank" rel="noopener">searching HGNC</a> for the
+      canonical symbol, or try one of the example chips above.
+    </div>
+  `;
+}
+
+function factsBlock(b) {
+  const F = [];
+  if (b.uniprot && b.uniprot.accession) {
+    F.push(["UniProt", `<a href="${LINK.uniprot(b.uniprot.accession)}" target="_blank" rel="noopener">${esc(b.uniprot.accession)}</a> &middot; ${esc(b.uniprot.entryName || "")}`]);
+  }
+  if (b.uniprot && b.uniprot.length) {
+    F.push(["Length", `${b.uniprot.length} aa`]);
+  }
+  if (b.ensembl && b.ensembl.id) {
+    F.push(["Ensembl", `<a href="${LINK.ensembl(b.ensembl.id)}" target="_blank" rel="noopener">${esc(b.ensembl.id)}</a>`]);
+  }
+  if (b.gene && b.gene.uid) {
+    F.push(["NCBI Gene", `<a href="${LINK.ncbiGene(b.gene.uid)}" target="_blank" rel="noopener">${esc(b.gene.uid)}</a>`]);
+  }
+  if (b.gene && b.gene.maplocation) {
+    F.push(["Locus", esc(b.gene.maplocation)]);
+  } else if (b.ensembl && b.ensembl.chr) {
+    const strand = b.ensembl.strand === 1 ? "+" : (b.ensembl.strand === -1 ? "−" : "");
+    F.push(["Locus", `chr${esc(b.ensembl.chr)} ${strand}`]);
+  }
+  if (b.ensembl && b.ensembl.biotype) {
+    F.push(["Biotype", esc(b.ensembl.biotype)]);
+  }
+  if (b.gene && b.gene.aliases && b.gene.aliases.length) {
+    F.push(["Aliases", esc(b.gene.aliases.slice(0,4).join(", "))]);
+  }
+  if (!F.length) return "";
+  return `
+    <div class="facts">
+      ${F.map(([k,v]) => `<div class="fact"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`).join("")}
+    </div>
+  `;
+}
+
+function functionCard(b) {
+  if (!b.uniprot || !b.uniprot.function) {
+    return `
+      <section class="card">
+        <h2>Protein function <span class="src">UniProt</span></h2>
+        <div class="notice">No reviewed function annotation in Swiss-Prot for this entry.</div>
+      </section>
+    `;
+  }
+  // Strip parenthesized PubMed citations for legibility (kept available via accession link).
+  const cleaned = b.uniprot.function
+    .replace(/\s*\((?:By similarity|PubMed:[^)]+|Ref\.[^)]+)\)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `
+    <section class="card">
+      <h2>Protein function <span class="src">UniProt</span></h2>
+      <div class="body">
+        <p>${esc(cleaned)}</p>
+        ${b.uniprot.subcellular ? `<p><strong>Subcellular location.</strong> ${esc(b.uniprot.subcellular)}</p>` : ""}
+      </div>
+    </section>
+  `;
+}
+
+function geneCard(b) {
+  if (!b.gene || !b.gene.summary) {
+    if (b.ensembl && b.ensembl.description) {
+      return `
+        <section class="card">
+          <h2>Gene summary <span class="src">Ensembl</span></h2>
+          <div class="body"><p>${esc(b.ensembl.description.replace(/\[Source:.*\]$/, "").trim())}</p></div>
+        </section>
+      `;
+    }
+    return "";
+  }
+  return `
+    <section class="card">
+      <h2>Gene summary <span class="src">NCBI Entrez Gene</span></h2>
+      <div class="body">
+        <p><strong>${esc(b.gene.name || "")}</strong> &mdash; ${esc(b.gene.description || "")}</p>
+        <p>${esc(b.gene.summary)}</p>
+      </div>
+    </section>
+  `;
+}
+
+function pathwaysCard(b) {
+  const ps = (b.pathways || []).slice(0, 8);
+  return `
+    <section class="card">
+      <h2>Pathway membership <span class="src">Reactome</span></h2>
+      ${
+        ps.length
+          ? `<ul class="list">${ps.map(p => `
+              <li>
+                <div class="row1">
+                  <span class="id">${esc(p.stId)}</span>
+                  <span class="title"><a href="${LINK.reactome(p.stId)}" target="_blank" rel="noopener">${esc(p.name)}</a></span>
+                </div>
+              </li>`).join("")}</ul>`
+          : `<div class="notice">No curated Reactome pathways are mapped to this UniProt accession${b.uniprot && b.uniprot.accession ? ` (${esc(b.uniprot.accession)})` : ""}.</div>`
+      }
+    </section>
+  `;
+}
+
+function pubmedCard(b) {
+  const items = (b.pubmed || []).slice(0, 5);
+  return `
+    <section class="card">
+      <h2>Recent literature <span class="src">PubMed</span></h2>
+      ${
+        items.length
+          ? `<ul class="list">${items.map(p => {
+              const auth = p.authors && p.authors.length
+                ? (p.authors.length > 3 ? `${p.authors.slice(0,3).join(", ")}, et al.` : p.authors.join(", "))
+                : "";
+              return `
+                <li>
+                  <div class="row1">
+                    <span class="id">PMID ${esc(p.pmid)}</span>
+                    <span class="title"><a href="${LINK.pubmed(p.pmid)}" target="_blank" rel="noopener">${esc(p.title.replace(/\.$/, ""))}</a></span>
+                  </div>
+                  <div class="row2">
+                    ${auth ? esc(auth) + " &middot; " : ""}<span class="journal">${esc(p.journal || "")}</span>${p.pubdate ? " &middot; " + esc(p.pubdate) : ""}
+                  </div>
+                </li>`;
+            }).join("")}</ul>`
+          : `<div class="notice">No recent PubMed citations indexed under this gene.</div>`
+      }
+    </section>
+  `;
+}
+
+function renderBrief(b) {
+  // Decide whether we got enough to call this "found".
+  const hasAny = !!(b.uniprot || b.gene || b.ensembl || (b.pubmed && b.pubmed.length));
+  if (!hasAny) { notFoundView(b.query); return; }
+
+  const proteinTitle = (b.uniprot && b.uniprot.proteinName)
+    || (b.gene && b.gene.description)
+    || (b.ensembl && b.ensembl.description && b.ensembl.description.replace(/\[Source:.*\]$/, "").trim())
+    || "";
+
+  briefEl.innerHTML = `
+    <div class="title-block">
+      <span class="gene">${esc(b.query)}</span>
+      <span class="protein">${esc(proteinTitle)}</span>
+      <span class="organism">Homo sapiens</span>
+    </div>
+    ${factsBlock(b)}
+    ${functionCard(b)}
+    ${geneCard(b)}
+    ${pathwaysCard(b)}
+    ${pubmedCard(b)}
+  `;
+  // Soft-scroll the brief into view on mobile / short windows.
+  briefEl.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderError(sym, err) {
+  briefEl.classList.remove("hidden");
+  briefEl.innerHTML = `
+    <div class="notice warn">
+      <strong>Couldn't compose a brief for <code>${esc(sym)}</code>.</strong>
+      ${esc(String(err && err.message || err || "Unknown error"))}<br>
+      Check your network connection and try again, or pick one of the example chips above.
+    </div>
+  `;
+}
+
+/* ---------- Wire-up ---------- */
+
+const formEl = document.getElementById("search-form");
+const inputEl = document.getElementById("q");
+const goBtn = document.getElementById("go");
+
+let currentReq = 0;
+
+async function run(sym) {
+  sym = cleanSymbol(sym);
+  if (!sym) { inputEl.focus(); return; }
+  if (sym.length > 25) { renderError(sym, "Gene symbol too long."); return; }
+
+  // Update URL so briefs are linkable.
+  const url = new URL(location.href);
+  url.searchParams.set("gene", sym);
+  history.replaceState(null, "", url.toString());
+
+  document.title = `${sym} — bioscope`;
+  goBtn.disabled = true;
+  goBtn.textContent = "Composing…";
+  renderSkeleton(sym);
+
+  const myReq = ++currentReq;
+  try {
+    const brief = await fetchBrief(sym);
+    if (myReq !== currentReq) return; // a newer search took over
+    renderBrief(brief);
+  } catch (e) {
+    if (myReq !== currentReq) return;
+    renderError(sym, e);
+  } finally {
+    if (myReq === currentReq) {
+      goBtn.disabled = false;
+      goBtn.textContent = "Generate brief";
+    }
+  }
+}
+
+formEl.addEventListener("submit", (e) => {
+  e.preventDefault();
+  run(inputEl.value);
+});
+
+document.querySelectorAll(".chip").forEach(el => {
+  el.addEventListener("click", () => {
+    inputEl.value = el.dataset.q;
+    run(el.dataset.q);
+  });
+});
+
+// Allow ?gene=SNCA-style deep links.
+const initial = new URL(location.href).searchParams.get("gene");
+if (initial) {
+  inputEl.value = cleanSymbol(initial);
+  run(initial);
+}
+
+</script>
+
+</body>
+</html>
