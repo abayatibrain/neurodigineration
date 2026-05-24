@@ -649,6 +649,42 @@ const DEFAULT_GENE_PANEL = [
     expectTokens: ['FAN1', 'Q9Y2M0', 'huntington', 'DNA repair', 'modifier'],
   },
 
+  // ===== Lysosomal storage / homeostasis (expanded round) =====
+  { symbol: 'LAMP1',  aliases: ['CD107a'], notes: 'Lysosomal membrane glycoprotein 1 — abundant marker; CLEAR-network TFEB target.',
+    expectTokens: ['LAMP1', 'P11279', 'lysosom', 'membrane'] },
+  { symbol: 'LAMP2',  aliases: ['CD107b', 'LAMP-2A'], notes: 'Lysosomal membrane glycoprotein 2 — Danon disease (X-linked); LAMP2A is the CMA receptor.',
+    expectTokens: ['LAMP2', 'P13473', 'Danon', 'chaperone-mediated autophagy', 'lysosom'] },
+  { symbol: 'CTSD',   aliases: ['CLN10'], notes: 'Cathepsin D — major lysosomal aspartyl protease; clears α-synuclein and processes APP; CLN10 (congenital NCL).',
+    expectTokens: ['cathepsin', 'P07339', 'lysosom', 'NCL', 'alzheimer'] },
+  { symbol: 'CTSB',   aliases: [], notes: 'Cathepsin B — lysosomal cysteine protease; cleaves tau to aggregation-prone fragments.',
+    expectTokens: ['cathepsin', 'P07858', 'tau', 'lysosom'] },
+  { symbol: 'TPP1',   aliases: ['CLN2'], notes: 'Tripeptidyl peptidase 1 — late-infantile neuronal ceroid lipofuscinosis (Batten CLN2); cerliponase alfa ERT approved.',
+    expectTokens: ['TPP1', 'O14773', 'CLN2', 'Batten', 'NCL'] },
+  { symbol: 'CLN3',   aliases: ['BATTEN'], notes: 'Juvenile NCL (classic Batten disease) — endolysosomal membrane protein involved in autophagic flux.',
+    expectTokens: ['CLN3', 'Q13286', 'Batten', 'NCL', 'lysosom'] },
+  { symbol: 'IDUA',   aliases: ['MPS1', 'HURLER'], notes: 'α-L-iduronidase — Hurler/Scheie syndromes (mucopolysaccharidosis type I); GAG degradation.',
+    expectTokens: ['iduronidase', 'P35475', 'Hurler', 'MPS', 'lysosom'] },
+  { symbol: 'CTNS',   aliases: ['CYSTINOSIS'], notes: 'Cystinosin — lysosomal cystine transporter; loss causes cystinosis; TFEB target.',
+    expectTokens: ['cystinosin', 'O60931', 'cystinosis', 'lysosom'] },
+
+  // ===== Mitochondrial machinery (expanded round) =====
+  { symbol: 'VDAC1',  aliases: ['PORIN'], notes: 'Voltage-dependent anion channel 1 — major OMM porin; abundant PRKN ubiquitination substrate during mitophagy.',
+    expectTokens: ['VDAC1', 'P21796', 'mitochondri', 'outer membrane', 'mitophagy'] },
+  { symbol: 'OPA1',   aliases: ['NPG', 'NTG'], notes: 'OPA1 GTPase — inner mitochondrial membrane fusion and cristae shaping; loss causes autosomal-dominant optic atrophy.',
+    expectTokens: ['OPA1', 'O60313', 'mitochondri', 'fusion', 'optic'] },
+  { symbol: 'PARL',   aliases: ['PSARL'], notes: 'PARL rhomboid intramembrane protease — cleaves PINK1 to set its mitophagy threshold.',
+    expectTokens: ['PARL', 'Q9H300', 'rhomboid', 'mitochondri', 'PINK1'] },
+  { symbol: 'TFAM',   aliases: [], notes: 'Mitochondrial transcription factor A — packages mtDNA and drives transcription; mtDNA copy-number maintenance.',
+    expectTokens: ['TFAM', 'Q00059', 'mitochondri', 'mtDNA'] },
+  { symbol: 'POLG',   aliases: ['POLGA', 'PEO'], notes: 'Mitochondrial DNA polymerase γ — Alpers syndrome, PEO; mtDNA depletion/deletion disorders.',
+    expectTokens: ['POLG', 'P54098', 'mitochondri', 'mtDNA', 'Alpers'] },
+  { symbol: 'SPG7',   aliases: ['PARAPLEGIN'], notes: 'Paraplegin — m-AAA inner-membrane protease subunit; hereditary spastic paraplegia type 7; processes OPA1.',
+    expectTokens: ['SPG7', 'Q9UQ90', 'paraplegin', 'hereditary spastic', 'mitochondri'] },
+  { symbol: 'TOMM70', aliases: ['TOM70'], notes: 'Outer-mitochondrial-membrane import receptor — recognises C-terminal targeting signals; brings PINK1 to the TOM complex.',
+    expectTokens: ['TOMM70', 'O94826', 'mitochondri', 'TOM complex', 'import'] },
+  { symbol: 'NDUFS1', aliases: ['CI-75kD'], notes: 'Core subunit of mitochondrial Complex I — Leigh syndrome when lost; Complex I deficiency is a defining feature of PD substantia nigra.',
+    expectTokens: ['NDUFS1', 'P28331', 'Complex I', 'mitochondri', 'Leigh'] },
+
   // ===== Group J — FTD modifiers & brain-iron accumulation =====
   {
     symbol: 'TMEM106B',

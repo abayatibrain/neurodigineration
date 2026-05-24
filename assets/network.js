@@ -12,6 +12,7 @@ import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
 
 import { BioscopeModel } from './model.js';
 import { DISEASES, NODES, EDGES, EDGE_COLORS, EDGE_LEGEND } from './network-data.js';
+import { loadApiKey, looksLikeAnthropicKey, saveApiKey, streamClaude } from './anthropic.js';
 
 const model = new BioscopeModel();
 
@@ -182,7 +183,27 @@ function nodeRadius(n) {
 // ---------------------------------------------------------------------------
 // Render: edges
 // ---------------------------------------------------------------------------
-const edgeSel = gEdges.selectAll('path')
+// Two-layer edges: a wider invisible "hit area" path captures clicks/hover
+// so edges are easy to grab even at 1-2px visible thickness. The visible
+// edge has pointer-events:none so it never steals clicks from its hit layer.
+const edgeHitSel = gEdges.selectAll('path.edge-hit')
+  .data(links, edgeId)
+  .enter()
+  .append('path')
+  .attr('class', 'edge-hit')
+  .attr('fill', 'none')
+  .attr('stroke', 'transparent')
+  .attr('stroke-width', 16)
+  .style('cursor', 'pointer')
+  .style('pointer-events', 'stroke')
+  .on('click', (event, d) => {
+    event.stopPropagation();
+    selectEdge(d);
+  })
+  .on('mouseover', (event, d) => setHoverEdge(d))
+  .on('mouseout', () => setHoverEdge(null));
+
+const edgeSel = gEdges.selectAll('path.edge')
   .data(links, edgeId)
   .enter()
   .append('path')
@@ -190,14 +211,7 @@ const edgeSel = gEdges.selectAll('path')
   .attr('stroke', (d) => EDGE_COLORS[d.kind])
   .attr('stroke-width', (d) => 0.9 + 2.6 * (d.strength || 0.5))
   .attr('opacity', 0.65)
-  .on('click', (event, d) => {
-    event.stopPropagation();
-    selectEdge(d);
-  })
-  .on('mouseover', (event, d) => {
-    setHoverEdge(d);
-  })
-  .on('mouseout', () => setHoverEdge(null));
+  .style('pointer-events', 'none');
 
 // ---------------------------------------------------------------------------
 // Render: nodes (rect with text, sized by prevalence)
@@ -251,15 +265,16 @@ function truncate(s, n) { return (s || '').length <= n ? (s || '') : (s || '').s
 // Tick
 // ---------------------------------------------------------------------------
 simulation.on('tick', () => {
-  edgeSel.attr('d', (d) => {
+  const pathFor = (d) => {
     const sx = d.source.x, sy = d.source.y;
     const tx = d.target.x, ty = d.target.y;
     const dx = tx - sx, dy = ty - sy;
-    // Curve cross-disease edges more than intra-disease for legibility
     const sameDisease = d.source.disease === d.target.disease;
     const dr = sameDisease ? Math.hypot(dx, dy) * 2 : Math.hypot(dx, dy) * 1.1;
     return `M${sx},${sy}A${dr},${dr} 0 0,1 ${tx},${ty}`;
-  });
+  };
+  edgeSel.attr('d', pathFor);
+  edgeHitSel.attr('d', pathFor);
   nodeSel.attr('transform', (d) => `translate(${d.x},${d.y})`);
 });
 
@@ -619,6 +634,194 @@ window.addEventListener('resize', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Suggest-a-connection corner prompt — SME asks, Claude proposes
+// ---------------------------------------------------------------------------
+// Free-text prompt → Claude returns {from,to,kind,note,pmids[]} → the new
+// edge is drawn on the canvas as a dashed transient edge AND the side panel
+// opens with the rating block, so the SME judges it like any other edge.
+//
+// The user-suggested edge is also injected into the live `links` array so
+// it appears in the SVG; on reload it's gone (we don't persist the data
+// graph here — but the EDGE RATING is persisted via recordEdgeRating).
+const SUGGEST_PROMPT = `You are bioscope, proposing a biological connection between two genes/proteins from a free-text SME prompt.
+
+The SME may give you two gene symbols (e.g., "SNCA TFEB"), a question (e.g., "is BRCA1 connected to neurodegeneration?"), or a description. Identify the most relevant gene/protein pair and propose the strongest documented connection.
+
+Return ONLY a single JSON object with this exact shape, no markdown fences, no preamble:
+
+{
+  "from": "<HGNC symbol of first gene>",
+  "to": "<HGNC symbol of second gene>",
+  "kind": "kinase-substrate" | "receptor-ligand" | "complex" | "modifier" | "shared-mechanism" | "shared-disease" | "opposes" | "none",
+  "note": "<2-3 sentence mechanistic explanation. If kind=none, explain what each gene does and that no significant connection is documented.>",
+  "pmids": ["<pmid1>", "<pmid2>"]
+}
+
+Rules:
+- Cite REAL PubMed PMIDs only — do not invent.
+- Prefer kind="none" over fabricating.
+- Pick the most specific kind that applies.
+- note: ≤ 400 characters.
+- pmids: ≤ 3 entries.
+- Honesty about absence of connection is rewarded; fabrication is penalised.`;
+
+function setupSuggestCard() {
+  const card = $('#suggest-card');
+  const toggle = $('#suggest-toggle');
+  const head = $('#suggest-head');
+  const goBtn = $('#suggest-go');
+  const input = $('#suggest-input');
+
+  head.addEventListener('click', (e) => {
+    if (e.target === toggle || e.target === goBtn) return;
+    card.classList.toggle('collapsed');
+    toggle.textContent = card.classList.contains('collapsed') ? '+' : '−';
+  });
+  toggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    card.classList.toggle('collapsed');
+    toggle.textContent = card.classList.contains('collapsed') ? '+' : '−';
+  });
+
+  goBtn.addEventListener('click', () => askSuggestion(input.value.trim()));
+  input.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') askSuggestion(input.value.trim());
+  });
+}
+
+async function askSuggestion(text) {
+  if (!text) { toast('Type a suggestion first.', 'warn'); return; }
+  const apiKey = (loadApiKey() || '').trim();
+  if (!apiKey || !looksLikeAnthropicKey(apiKey)) {
+    toast('This needs your Anthropic key — set it on the Train or Ask page.', 'warn', 4200);
+    return;
+  }
+
+  const goBtn = $('#suggest-go');
+  const meta = $('#suggest-meta');
+  goBtn.disabled = true; goBtn.textContent = 'Asking…';
+  meta.textContent = 'thinking';
+
+  try {
+    const result = await streamClaude({
+      apiKey,
+      model: model.settings.anthropicModel,
+      system: SUGGEST_PROMPT,
+      messages: [{ role: 'user', content: text }],
+      maxTokens: 800,
+    });
+    let parsed;
+    try {
+      const m = result.text.match(/\{[\s\S]*\}/);
+      parsed = m ? JSON.parse(m[0]) : JSON.parse(result.text);
+    } catch {
+      toast('Claude did not return parseable JSON. Try rephrasing.', 'warn', 4000);
+      return;
+    }
+    const from = (parsed.from || '').toUpperCase();
+    const to   = (parsed.to   || '').toUpperCase();
+    if (!from || !to) { toast('Claude could not identify two genes.', 'warn'); return; }
+
+    // Look up or auto-inject nodes for from/to so the dashed edge has endpoints
+    let nodeFrom = nodeById.get(from);
+    let nodeTo   = nodeById.get(to);
+    if (!nodeFrom) {
+      nodeFrom = { id: from, protein: from, disease: 'SHARED', prevalence: 0.4, role: 'auto-added from SME suggestion', x: W()/2 - 80, y: H()/2 };
+      NODES.push(nodeFrom); nodeById.set(from, nodeFrom);
+    }
+    if (!nodeTo) {
+      nodeTo = { id: to, protein: to, disease: 'SHARED', prevalence: 0.4, role: 'auto-added from SME suggestion', x: W()/2 + 80, y: H()/2 };
+      NODES.push(nodeTo); nodeById.set(to, nodeTo);
+    }
+
+    // Append a transient dashed edge so the SME sees what Claude proposed
+    const newLink = {
+      from, to, kind: parsed.kind || 'none',
+      note: parsed.note || '',
+      pmids: Array.isArray(parsed.pmids) ? parsed.pmids.filter(Boolean) : [],
+      strength: 0.6,
+      source: nodeFrom, target: nodeTo,
+      _userSuggested: true,
+      _prompt: text,
+    };
+    links.push(newLink);
+    rerenderGraphIncremental();
+
+    // Open the side panel with the proposed connection + rating block
+    selectEdge(newLink);
+    meta.textContent = `${result.usage?.input_tokens || 0}/${result.usage?.output_tokens || 0} tok`;
+    toast(`Proposed ${from} ↔ ${to} (${parsed.kind}). Rate it in the side panel.`, 'ok');
+  } catch (err) {
+    console.error(err);
+    toast(`Failed: ${err.message}`, 'danger', 5000);
+    meta.textContent = 'failed';
+  } finally {
+    goBtn.disabled = false; goBtn.textContent = 'Ask Claude';
+  }
+}
+
+function rerenderGraphIncremental() {
+  // Add any new hit-area path
+  const hitEnter = gEdges.selectAll('path.edge-hit').data(links, edgeId).enter()
+    .append('path').attr('class', 'edge-hit')
+    .attr('fill', 'none').attr('stroke', 'transparent').attr('stroke-width', 16)
+    .style('cursor', 'pointer').style('pointer-events', 'stroke')
+    .on('click', (event, d) => { event.stopPropagation(); selectEdge(d); })
+    .on('mouseover', (event, d) => setHoverEdge(d))
+    .on('mouseout', () => setHoverEdge(null));
+
+  // Add any new visible edge
+  const visEnter = gEdges.selectAll('path.edge').data(links, edgeId).enter()
+    .append('path').attr('class', (d) => `edge ${d._userSuggested ? 'user-edge' : ''}`)
+    .attr('stroke', (d) => EDGE_COLORS[d.kind] || '#888')
+    .attr('stroke-width', (d) => 0.9 + 2.6 * (d.strength || 0.5))
+    .attr('opacity', 0.7).style('pointer-events', 'none');
+
+  // Add any new node
+  const nodeEnter = gNodes.selectAll('g.node-group').data(NODES, (d) => d.id).enter()
+    .append('g').attr('class', 'node-group')
+    .style('color', (d) => DISEASES[d.disease]?.color || '#888')
+    .on('click', (event, d) => { event.stopPropagation(); selectNode(d); })
+    .on('mouseover', (event, d) => setHoverNode(d))
+    .on('mouseout', () => setHoverNode(null))
+    .call(d3.drag().on('start', dragStarted).on('drag', dragged).on('end', dragEnded));
+  nodeEnter.append('rect').attr('class', 'node-bg')
+    .attr('width', (d) => nodeWidth(d)).attr('height', (d) => nodeHeight(d))
+    .attr('x', (d) => -nodeWidth(d)/2).attr('y', (d) => -nodeHeight(d)/2)
+    .attr('rx', 6)
+    .attr('fill', (d) => DISEASES[d.disease]?.soft || '#11161d')
+    .attr('stroke', (d) => DISEASES[d.disease]?.color || '#888');
+  nodeEnter.append('text').attr('class', 'node-label')
+    .attr('dy', (d) => -1).attr('font-size', (d) => 11 + (d.prevalence || 0.4) * 4)
+    .text((d) => d.id);
+
+  // Refresh sel references (D3 v7 selectAll re-binds)
+  // Restart simulation to lay out new nodes/edges
+  simulation.nodes(NODES);
+  simulation.force('link').links(links);
+  simulation.alpha(0.7).restart();
+  setTimeout(() => simulation.alphaTarget(0), 1400);
+}
+
+// ---------------------------------------------------------------------------
+// Theme toggle (light/dark)
+// ---------------------------------------------------------------------------
+// The inline script in network.html applies the saved theme BEFORE first
+// paint so there's no flash. Here we just wire the toggle button.
+const THEME_KEY = 'bioscope-network-theme';
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+function setTheme(t) {
+  if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+  try { localStorage.setItem(THEME_KEY, t); } catch { /* noop */ }
+}
+function toggleTheme() {
+  setTheme(currentTheme() === 'light' ? 'dark' : 'light');
+}
+
+// ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
 function boot() {
@@ -629,6 +832,8 @@ function boot() {
   $('#zoom-out').addEventListener('click', () => zoomBy(1 / 1.3));
   $('#zoom-reset').addEventListener('click', () => zoomReset());
   $('#dismiss-help').addEventListener('click', () => $('#help-overlay').remove());
+  $('#theme-toggle').addEventListener('click', toggleTheme);
+  setupSuggestCard();
   model.on('change', renderHeaderStatus);
   // Kick the simulation
   simulation.alpha(1).restart();

@@ -3,6 +3,7 @@
  * Three layers: header (status), full-bleed canvas (D3), slide-in detail panel. */
 
 :root {
+  /* Dark theme is the default — matches the data-instrument aesthetic. */
   --bg: #0b0f14;
   --bg-2: #11161d;
   --panel: #161d27;
@@ -23,6 +24,34 @@
   --danger-soft: rgba(239, 68, 68, 0.18);
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-2: 0 12px 36px rgba(0, 0, 0, 0.55);
+  --canvas-glow: rgba(86, 177, 255, 0.06);
+}
+
+/* Light-theme override. Token set mirrors the rest of bioscope-web
+ * (index/ask/train pages) so the visual language is consistent when
+ * the user prefers light mode. */
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-2: #f7f9fb;
+  --panel: #ffffff;
+  --panel-2: #f0f4f8;
+  --ink: #14202b;
+  --ink-soft: #3a4a5c;
+  --mute: #6a7787;
+  --rule: #e3e8ee;
+  --rule-strong: #cdd6e0;
+  --accent: #0b3b5a;
+  --accent-soft: #e6eef5;
+  --gold: #b45309;
+  --gold-soft: #fff7d6;
+  --ok: #15803d;
+  --ok-soft: #dcfce7;
+  --warn: #b45309;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-2: 0 12px 36px rgba(0, 0, 0, 0.10);
+  --canvas-glow: rgba(11, 59, 90, 0.04);
 }
 
 * { box-sizing: border-box; }
@@ -71,6 +100,25 @@ nav.site-nav { display: flex; gap: 14px; font-size: 13.5px; }
 nav.site-nav a { color: var(--ink-soft); }
 nav.site-nav a:hover { color: var(--accent); }
 
+/* Theme toggle button */
+.theme-toggle {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: grid; place-items: center;
+  font-size: 14px;
+  transition: color 0.15s, border-color 0.15s, transform 0.05s;
+}
+.theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.theme-toggle:active { transform: scale(0.94); }
+.theme-toggle .sun { display: none; }
+.theme-toggle .moon { display: inline; }
+[data-theme="light"] .theme-toggle .sun { display: inline; }
+[data-theme="light"] .theme-toggle .moon { display: none; }
+
 /* Disease filter chips */
 .disease-filters {
   display: flex; gap: 4px; flex-wrap: wrap;
@@ -105,7 +153,7 @@ nav.site-nav a:hover { color: var(--accent); }
   position: fixed; top: 56px; left: 0; right: 0; bottom: 0;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(86,177,255,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% 40%, var(--canvas-glow) 0%, transparent 70%),
     var(--bg);
 }
 #graph {
@@ -343,6 +391,68 @@ nav.site-nav a:hover { color: var(--accent); }
   font-size: 10.5px; cursor: pointer;
 }
 .help-overlay button.dismiss:hover { color: var(--ink); }
+
+/* ===== Corner prompt — SME suggests a connection, Claude proposes ===== */
+.suggest-card {
+  position: fixed; right: 18px; bottom: 18px;
+  width: 320px; max-width: calc(100vw - 36px);
+  background: var(--panel);
+  border: 1px solid var(--rule-strong);
+  border-radius: 12px;
+  padding: 12px 14px;
+  z-index: 35;
+  box-shadow: var(--shadow-2);
+  transition: width 0.2s, padding 0.2s;
+}
+.suggest-card.collapsed {
+  width: auto; padding: 8px 12px;
+}
+.suggest-card .head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.suggest-card .head h4 {
+  margin: 0; font-size: 11px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--gold);
+  font-weight: 700; flex: 1;
+}
+.suggest-card .head .toggle {
+  font-size: 14px; color: var(--mute);
+  background: none; border: none; cursor: pointer;
+  width: 22px; height: 22px;
+}
+.suggest-card.collapsed .body { display: none; }
+.suggest-card .body { display: block; }
+.suggest-card .hint {
+  font-size: 11.5px; color: var(--mute); margin-bottom: 8px;
+}
+.suggest-card textarea {
+  width: 100%; min-height: 60px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit; font-size: 13px;
+  resize: vertical;
+}
+.suggest-card textarea:focus { border-color: var(--accent); outline: none; }
+.suggest-card .row {
+  display: flex; gap: 6px; margin-top: 8px; align-items: center;
+}
+.suggest-card .row button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent); color: var(--bg);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.suggest-card .row button:disabled { opacity: 0.5; cursor: progress; }
+.suggest-card .row .meta { font-size: 11px; color: var(--mute); margin-left: auto; }
+
+/* Transient user-suggested edge styling */
+.edge.user-edge { stroke-dasharray: 6 4; }
 
 /* ===== Toast (shared) ===== */
 .toast-host {

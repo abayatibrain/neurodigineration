@@ -22,17 +22,24 @@ import {
   saveApiKey,
   streamClaude,
 } from './anthropic.js';
+import { EDGES as NETWORK_EDGES, EDGE_COLORS, NODES as NETWORK_NODES } from './network-data.js';
 
 const model = new BioscopeModel();
 
 const state = {
   mode: 'mock', // 'mock' | 'live'
-  centerMode: 'single', // 'single' | 'ab'
+  centerMode: 'single', // 'single' | 'ab' | 'connection'
   currentGene: model.panel[0]?.symbol ?? 'SNCA',
   currentBrief: null, // { gene, brief, source, variant }
   currentRating: { factuality: 0, completeness: 0, citation: 0, clarity: 0 },
   currentComment: '',
   abPair: null, // { gene, A, B }
+
+  // Connection-training mode (Train connection tab)
+  connGeneA: null,
+  connGeneB: null,
+  connProposal: null, // { from, to, kind, note, pmids, source: 'live'|'mock' }
+  connRating: { validity: null, explanation: 0, citation: 0, feedback: '' },
 };
 
 // =============================================================================
@@ -225,6 +232,7 @@ function renderCenterMode() {
   $$('.center-mode button').forEach((b) => b.classList.toggle('active', b.dataset.cmode === state.centerMode));
   $('#single-pane').style.display = state.centerMode === 'single' ? '' : 'none';
   $('#ab-pane').style.display = state.centerMode === 'ab' ? '' : 'none';
+  $('#connection-pane').style.display = state.centerMode === 'connection' ? '' : 'none';
 }
 
 function renderBrief() {
@@ -781,6 +789,283 @@ function download(filename, data, type) {
 }
 
 // =============================================================================
+// Connection-training mode
+// =============================================================================
+
+const CONNECTION_GENERATOR_PROMPT = `You are bioscope, proposing a biological connection between two genes/proteins for SME (subject-matter expert) validation.
+
+You will receive two HGNC gene symbols (A and B). Your task is to propose the strongest documented connection between them, if one exists.
+
+Return ONLY a single JSON object with this exact shape, no markdown fences, no preamble:
+
+{
+  "kind": "kinase-substrate" | "receptor-ligand" | "complex" | "modifier" | "shared-mechanism" | "shared-disease" | "opposes" | "none",
+  "note": "<2-3 sentence mechanistic explanation. If kind=none, explain what each gene does separately and that no significant connection is documented.>",
+  "pmids": ["<pmid1>", "<pmid2>"]
+}
+
+Rules:
+- Cite REAL PubMed PMIDs only. Do not invent. If you don't know a PMID for a claim, leave the pmids array empty rather than guessing.
+- Prefer kind="none" over fabricating a relationship.
+- Pick the most specific kind that applies.
+- note: ≤ 400 characters.
+- pmids: ≤ 3 entries.
+- The SME will rate your proposal. Honesty about absence of connection is rewarded; fabrication is penalised.`;
+
+function pickRandomGeneFromPanel() {
+  const panel = model.panel;
+  return panel[Math.floor(Math.random() * panel.length)]?.symbol;
+}
+
+function populateConnPickers() {
+  const a = $('#conn-gene-a');
+  const b = $('#conn-gene-b');
+  a.innerHTML = ''; b.innerHTML = '';
+  for (const g of model.panel) {
+    a.appendChild(el('option', { value: g.symbol }, g.symbol));
+    b.appendChild(el('option', { value: g.symbol }, g.symbol));
+  }
+  if (!state.connGeneA) state.connGeneA = model.panel[0]?.symbol ?? 'SNCA';
+  if (!state.connGeneB) {
+    // Default B to second gene, not same as A
+    const alt = model.panel[1]?.symbol;
+    state.connGeneB = alt && alt !== state.connGeneA ? alt : pickRandomGeneFromPanel();
+  }
+  a.value = state.connGeneA;
+  b.value = state.connGeneB;
+}
+
+function pickRandomConnPair() {
+  const all = model.panel.map((p) => p.symbol);
+  if (all.length < 2) return;
+  const a = all[Math.floor(Math.random() * all.length)];
+  let b = all[Math.floor(Math.random() * all.length)];
+  let guard = 20;
+  while (b === a && guard-- > 0) b = all[Math.floor(Math.random() * all.length)];
+  state.connGeneA = a; state.connGeneB = b;
+  $('#conn-gene-a').value = a;
+  $('#conn-gene-b').value = b;
+}
+
+function findExistingMockEdge(a, b) {
+  return NETWORK_EDGES.find((e) =>
+    (e.from === a && e.to === b) || (e.from === b && e.to === a),
+  );
+}
+function randomMockEdge() {
+  return NETWORK_EDGES[Math.floor(Math.random() * NETWORK_EDGES.length)];
+}
+
+async function generateConnection() {
+  const a = state.connGeneA;
+  const b = state.connGeneB;
+  if (!a || !b) { toast('Pick both genes first.', 'warn'); return; }
+  if (a === b) { toast('Pick two different genes.', 'warn'); return; }
+
+  const btn = $('#conn-generate-btn');
+  btn.disabled = true;
+  btn.textContent = state.mode === 'live' ? 'Asking Claude…' : 'Picking edge…';
+
+  try {
+    if (state.mode === 'mock') {
+      // Try the curated edge for this specific pair first; otherwise a random one
+      // from the curated set so the SME can still train without an API key.
+      const exact = findExistingMockEdge(a, b);
+      const e = exact ?? randomMockEdge();
+      if (!exact) {
+        state.connGeneA = e.from; state.connGeneB = e.to;
+        $('#conn-gene-a').value = e.from; $('#conn-gene-b').value = e.to;
+      }
+      state.connProposal = {
+        from: e.from, to: e.to, kind: e.kind,
+        note: e.note, pmids: e.pmids ?? [],
+        source: exact ? 'mock-exact' : 'mock-random',
+      };
+      resetConnRating();
+      renderConnProposal();
+      return;
+    }
+
+    // Live mode: call Claude with JSON-mode prompt
+    const apiKey = (loadApiKey() || $('#api-key-input').value).trim();
+    if (!apiKey || !looksLikeAnthropicKey(apiKey)) {
+      toast('Live mode needs your Anthropic API key in the header.', 'warn', 4200);
+      return;
+    }
+    saveApiKey(apiKey);
+
+    let sys = CONNECTION_GENERATOR_PROMPT;
+    if (model.avoidPatterns.length > 0) {
+      sys += '\n\n## Avoid these patterns previously flagged by the SME:\n';
+      for (const av of model.avoidPatterns) sys += `- ${av.pattern}\n`;
+    }
+    const result = await streamClaude({
+      apiKey,
+      model: model.settings.anthropicModel,
+      system: sys,
+      messages: [{ role: 'user', content: `Gene A: ${a}\nGene B: ${b}` }],
+      maxTokens: 800,
+    });
+
+    // Parse JSON from the response, tolerant of stray text/fences
+    let parsed = null;
+    try {
+      const m = result.text.match(/\{[\s\S]*\}/);
+      parsed = m ? JSON.parse(m[0]) : JSON.parse(result.text);
+    } catch (e) {
+      console.warn('JSON parse fail, raw:', result.text);
+      toast('Claude did not return parseable JSON. Try again.', 'warn', 4000);
+      return;
+    }
+
+    state.connProposal = {
+      from: a, to: b,
+      kind: parsed.kind || 'none',
+      note: parsed.note || '',
+      pmids: Array.isArray(parsed.pmids) ? parsed.pmids.filter(Boolean) : [],
+      source: 'live',
+      usage: result.usage,
+    };
+    resetConnRating();
+    renderConnProposal();
+    toast(`Connection proposed (${result.usage?.input_tokens || 0} in / ${result.usage?.output_tokens || 0} out).`, 'ok');
+  } catch (err) {
+    console.error(err);
+    toast(`Generation failed: ${err.message}`, 'danger', 5000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate connection';
+  }
+}
+
+function renderConnProposal() {
+  const card = $('#conn-card');
+  const rate = $('#conn-rating-block');
+  if (!state.connProposal) {
+    card.className = 'brief-frame empty';
+    card.innerHTML = 'Pick two genes and click <strong>Generate connection</strong>.';
+    rate.style.display = 'none';
+    return;
+  }
+  const p = state.connProposal;
+  const color = EDGE_COLORS[p.kind] || 'var(--mute)';
+  card.className = 'brief-frame';
+  card.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 10px;">
+      <span style="font-family: 'SF Mono', monospace; font-weight: 700; color: var(--accent); font-size: 18px;">${escape(p.from)}</span>
+      <span style="color: var(--mute); font-size: 18px;">↔</span>
+      <span style="font-family: 'SF Mono', monospace; font-weight: 700; color: var(--accent); font-size: 18px;">${escape(p.to)}</span>
+      <span style="margin-left: auto; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; background: ${color}22; color: ${color};">${escape(p.kind)}</span>
+    </div>
+    <p style="margin: 0 0 12px; color: var(--ink-soft);">${escape(p.note) || '<em>(no description)</em>'}</p>
+    ${(p.pmids && p.pmids.length) ? `
+      <div style="border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 8px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mute); margin-bottom: 4px;">Citations</div>
+        <ul style="margin: 0; padding-left: 18px;">
+          ${p.pmids.map((id) => `<li style="font-size: 12.5px;"><a href="https://pubmed.ncbi.nlm.nih.gov/${escape(id)}/" target="_blank" rel="noopener" style="font-family: 'SF Mono', monospace;">PMID:${escape(id)}</a></li>`).join('')}
+        </ul>
+      </div>
+    ` : `<div style="font-size: 12.5px; color: var(--mute); font-style: italic; padding-top: 8px; border-top: 1px solid var(--rule);">No citations supplied — penalise on Citation★ if you confirm this connection.</div>`}
+    <div style="margin-top: 10px; font-size: 11px; color: var(--mute);">Source: ${escape(p.source)}${p.usage ? ` · ${p.usage.input_tokens || 0}/${p.usage.output_tokens || 0} tokens` : ''}</div>
+  `;
+  rate.style.display = '';
+  renderConnRatingControls();
+}
+
+function renderConnRatingControls() {
+  // Validity selection
+  $$('#connection-pane [data-validity]').forEach((b) => {
+    const sel = b.dataset.validity === state.connRating.validity;
+    b.classList.toggle('primary', sel);
+    b.style.background = sel
+      ? (b.dataset.validity === 'yes' ? 'var(--ok-soft)'
+        : b.dataset.validity === 'no' ? 'var(--danger-soft)'
+        : 'var(--warn-soft)')
+      : '';
+    b.style.color = sel
+      ? (b.dataset.validity === 'yes' ? 'var(--ok)'
+        : b.dataset.validity === 'no' ? 'var(--danger)'
+        : 'var(--warn)')
+      : '';
+    b.style.borderColor = sel ? 'transparent' : '';
+  });
+
+  // Stars
+  const grid = $('#conn-dim-grid');
+  grid.innerHTML = '';
+  const dims = [
+    ['explanation', 'Explanation', 'How accurate / specific is the mechanism?'],
+    ['citation',    'Citation',    'How relevant are the PMIDs?'],
+  ];
+  for (const [key, label, hint] of dims) {
+    grid.appendChild(
+      el('div', { class: 'dim-name' },
+        el('span', {}, label),
+        el('span', { class: 'hint' }, hint),
+      ),
+    );
+    const stars = el('div', { class: 'stars' });
+    for (let i = 1; i <= 5; i++) {
+      const cur = state.connRating[key];
+      stars.appendChild(
+        el('div', {
+          class: `star ${cur >= i ? 'selected' : ''}`,
+          'data-value': i,
+          onClick: () => {
+            state.connRating[key] = i;
+            renderConnRatingControls();
+            updateConnSaveEnabled();
+          },
+        }, '★'),
+      );
+    }
+    grid.appendChild(stars);
+    grid.appendChild(el('div', { class: 'dim-val' }, state.connRating[key] || '–'));
+  }
+  updateConnSaveEnabled();
+}
+
+function updateConnSaveEnabled() {
+  const r = state.connRating;
+  $('#conn-save-btn').disabled = !(r.validity && r.explanation > 0 && r.citation > 0);
+}
+
+function resetConnRating() {
+  state.connRating = { validity: null, explanation: 0, citation: 0, feedback: '' };
+  $('#conn-feedback').value = '';
+}
+
+function saveConnRating() {
+  if (!state.connProposal) return;
+  const r = state.connRating;
+  const p = state.connProposal;
+  const entry = model.recordEdgeRating({
+    edgeId: `${p.from}→${p.to}|${p.kind}`,
+    from: p.from, to: p.to, kind: p.kind,
+    proposedNote: p.note,
+    proposedPmids: p.pmids,
+    validity: r.validity,
+    explanationQuality: r.explanation,
+    citationQuality: r.citation,
+    feedback: ($('#conn-feedback').value || '').trim(),
+  });
+  if (r.validity === 'no') {
+    toast(`Marked ${p.from}↔${p.to} as not real. Avoid pattern added; model now ${model.version}.`, 'warn', 4000);
+  } else if (r.validity === 'yes' && r.explanation >= 4) {
+    toast(`Confirmed ${p.from}↔${p.to}. Promoted to few-shot; model now ${model.version}.`, 'bump', 4000);
+  } else {
+    toast('Judgement saved.', 'ok');
+  }
+  // Auto-load the next pair to keep flow going
+  state.connProposal = null;
+  resetConnRating();
+  renderConnProposal();
+  if (state.mode === 'mock') {
+    setTimeout(() => { pickRandomConnPair(); generateConnection(); }, 500);
+  }
+}
+
+// =============================================================================
 // Helpers
 // =============================================================================
 function snippet(s, n) {
@@ -872,6 +1157,21 @@ function boot() {
   sel.innerHTML = '';
   for (const m of ANTHROPIC_MODELS) sel.appendChild(el('option', { value: m.id }, m.label));
   sel.value = model.settings.anthropicModel;
+
+  // Connection-training wiring
+  populateConnPickers();
+  $('#conn-gene-a').addEventListener('change', (e) => { state.connGeneA = e.target.value; });
+  $('#conn-gene-b').addEventListener('change', (e) => { state.connGeneB = e.target.value; });
+  $('#conn-random-btn').addEventListener('click', () => { pickRandomConnPair(); });
+  $('#conn-generate-btn').addEventListener('click', generateConnection);
+  $$('#connection-pane [data-validity]').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      state.connRating.validity = btn.dataset.validity;
+      renderConnRatingControls();
+    }),
+  );
+  $('#conn-save-btn').addEventListener('click', saveConnRating);
+  $('#conn-feedback').addEventListener('input', (e) => { state.connRating.feedback = e.target.value; });
 
   // Subscribe to model changes
   model.on('change', () => renderAll());

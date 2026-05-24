@@ -94,8 +94,9 @@
         <label>Gene:</label>
         <select id="gene-picker"></select>
         <div class="center-mode" aria-label="Generation mode">
-          <button type="button" data-cmode="single" class="active" title="One brief at a time">Rate</button>
+          <button type="button" data-cmode="single" class="active" title="One brief at a time">Rate brief</button>
           <button type="button" data-cmode="ab" title="Two briefs side-by-side, pick a winner">A/B compare</button>
+          <button type="button" data-cmode="connection" title="Rate a proposed gene–gene connection — trains the network">Train connection</button>
         </div>
         <span class="spacer"></span>
         <button class="btn primary" id="generate-btn">Generate brief</button>
@@ -116,6 +117,41 @@
             <button id="skip-rating" class="btn ghost" title="Discard this brief and generate the next one">Skip</button>
             <button id="save-gold" class="btn" title="Save this brief as a gold-standard SFT example">Save as gold</button>
             <button id="save-rating" class="btn primary" title="Record the rating and feed the learning loop">Save rating</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection training pane -->
+      <div id="connection-pane" style="display: none">
+        <div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <label style="font-size: 12px; color: var(--mute);">Gene A:</label>
+          <select id="conn-gene-a" style="padding: 6px 10px; border: 1px solid var(--rule); border-radius: 6px;"></select>
+          <span style="color: var(--mute); font-size: 18px;">↔</span>
+          <label style="font-size: 12px; color: var(--mute);">Gene B:</label>
+          <select id="conn-gene-b" style="padding: 6px 10px; border: 1px solid var(--rule); border-radius: 6px;"></select>
+          <button class="btn" id="conn-random-btn" type="button" title="Pick a random pair from the panel">🎲 Random pair</button>
+          <span class="spacer" style="flex:1"></span>
+          <button class="btn primary" id="conn-generate-btn" type="button">Generate connection</button>
+        </div>
+        <div style="font-size: 12.5px; color: var(--mute); margin-bottom: 12px;">
+          In <strong>live mode</strong>, Claude proposes a connection between A and B with PMID citations. In <strong>mock mode</strong>, a random pre-curated edge from the network is shown. Either way, your rating trains the model.
+        </div>
+
+        <div id="conn-card" class="brief-frame empty" style="min-height: 180px;">
+          Pick two genes and click <strong>Generate connection</strong>.
+        </div>
+
+        <div class="rating-block" id="conn-rating-block" style="display: none;">
+          <h3>Rate this connection — feeds the model</h3>
+          <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+            <button class="btn" data-validity="yes" id="conn-val-yes" type="button" style="flex:1; min-width: 100px;">Real</button>
+            <button class="btn" data-validity="no" id="conn-val-no" type="button" style="flex:1; min-width: 100px;">Not Real</button>
+            <button class="btn" data-validity="uncertain" id="conn-val-uncertain" type="button" style="flex:1; min-width: 100px;">Uncertain</button>
+          </div>
+          <div class="dim-grid" id="conn-dim-grid"></div>
+          <div class="rating-actions">
+            <input type="text" id="conn-feedback" class="comment" placeholder="Optional correction — used as the avoid pattern if you mark Not Real" maxlength="400" />
+            <button id="conn-save-btn" class="btn primary" disabled type="button" title="Record the judgement into the model">Save judgement</button>
           </div>
         </div>
       </div>
