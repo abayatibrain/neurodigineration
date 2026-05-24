@@ -1,0 +1,608 @@
+// bioscope-web — ask page (GUI 2: end-user neurodegen Q&A).
+//
+// Reads model state from the SAME localStorage key as the training GUI
+// (`bioscope-train-v1`). That means every rating you make in /train.html
+// changes how this page answers questions — same systemPrompt, same
+// fewShotExamples, same avoidPatterns.
+//
+// Three-tier model resolution at boot:
+//   1. localStorage state (your most recent training session, if any)
+//   2. assets/trained-model.json (the committed canonical trained model,
+//      so deployed visitors get the SME's training without needing to
+//      train themselves)
+//   3. fresh default model state (cold boot, no training)
+//
+// On every question:
+//   - try to identify a gene/protein symbol from the user's text
+//     (explicit field overrides auto-detect)
+//   - if a symbol is found, fetch UniProt + NCBI Gene + Reactome +
+//     PubMed in parallel and bundle the JSON into the request as context
+//   - assemble messages: [few-shot examples] + [prior conversation] +
+//     [new question with bio-data attachment]
+//   - stream Claude's response into the conversation pane
+
+import { BioscopeModel, DEFAULT_SYSTEM_PROMPT } from './model.js';
+import { loadApiKey, looksLikeAnthropicKey, saveApiKey, streamClaude, ANTHROPIC_MODELS } from './anthropic.js';
+
+const TRAINED_MODEL_PATH = './assets/trained-model.json';
+const ASK_HISTORY_KEY = 'bioscope-ask-history-v1';
+
+const NEURODEGEN_SYSTEM_PROMPT = `You are bioscope, a research assistant focused on the molecular biology of neurodegenerative disease.
+
+Users ask you questions about specific proteins or genes — most often: "How does PROTEIN_X relate to neurodegeneration?" or follow-ups about mechanism, genetics, clinical relevance, or therapeutic targeting in conditions like Parkinson, Alzheimer, ALS, FTD, Huntington, prion disorders, and lysosomal storage diseases.
+
+For each question:
+1. Identify the protein/gene the question is about. If a symbol is given (HGNC), use it. If a protein name is given, map to the canonical gene symbol.
+2. Use the bio-data context provided in <bio_context> (UniProt entry, NCBI Gene record, Reactome pathways, recent PubMed) as your primary source. Cite identifiers verbatim — UniProt accessions, Reactome stable IDs, PMIDs.
+3. Connect the protein to neurodegeneration if there is a real, documented connection:
+   - disease association (genetic, idiopathic, risk factor, or modifier),
+   - pathway involvement (mitophagy, autophagy-lysosome, ubiquitin-proteasome, proteostasis, synaptic, axonal transport, neuroinflammation, etc.),
+   - mechanistic role (aggregation, toxic gain-of-function, loss-of-function, post-translational modification, etc.).
+4. If there is NO known connection to neurodegeneration, say so plainly. Don't invent one. Suggest what the protein IS associated with instead.
+5. Cite PMIDs and structural identifiers verbatim from the bio_context. Don't fabricate identifiers — if the context doesn't include a PMID for a claim, don't add a fake one.
+6. Keep answers focused: 2–4 paragraphs unless the question demands depth. Use plain markdown (bold for emphasis, italic for gene symbols, code spans for IDs).
+7. Don't hedge unless the underlying evidence hedges. "Causes" / "is required for" / "binds" beat "may play a role" / "is thought to" / "appears to."
+
+When the question is a follow-up to an earlier turn, maintain continuity — refer back to identifiers introduced earlier.`;
+
+const SAMPLE_QUESTIONS = [
+  { gene: 'SNCA', q: 'How does SNCA contribute to Parkinson disease pathology, and what makes it the leading PD gene?' },
+  { gene: 'APOE', q: 'Why is the APOE ε4 allele the strongest common genetic risk factor for late-onset Alzheimer disease?' },
+  { gene: 'PRKN', q: 'How do PRKN loss-of-function mutations cause early-onset Parkinson disease through mitophagy?' },
+  { gene: 'TP53', q: 'Is there real evidence that TP53 plays a role in neurodegeneration, or is the connection overstated?' },
+];
+
+const model = new BioscopeModel();
+const state = {
+  conversation: [], // [{ role: 'user' | 'assistant', content, gene?, citations?, ts, source }]
+  modelSource: 'default', // 'default' | 'committed' | 'localstorage'
+  streaming: false,
+};
+
+// =============================================================================
+// DOM helpers (shared with app.js — small enough to duplicate)
+// =============================================================================
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const el = (tag, attrs = {}, ...children) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (v != null && v !== false) n.setAttribute(k, String(v));
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    n.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return n;
+};
+const escape = (s) =>
+  String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function renderMarkdown(md) {
+  if (!md) return '';
+  const lines = md.split('\n');
+  let out = ''; let inList = false; let inPara = false;
+  const flushPara = () => { if (inPara) { out += '</p>'; inPara = false; } };
+  const flushList = () => { if (inList) { out += '</ul>'; inList = false; } };
+  const inline = (s) =>
+    escape(s)
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(?<![\w*])\*([^*]+)\*(?![\w*])/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^# /.test(line)) { flushPara(); flushList(); out += `<h1>${inline(line.slice(2))}</h1>`; continue; }
+    if (/^## /.test(line)) { flushPara(); flushList(); out += `<h2>${inline(line.slice(3))}</h2>`; continue; }
+    if (/^### /.test(line)) { flushPara(); flushList(); out += `<h3>${inline(line.slice(4))}</h3>`; continue; }
+    if (/^[-*] /.test(line)) {
+      flushPara();
+      if (!inList) { out += '<ul>'; inList = true; }
+      out += `<li>${inline(line.slice(2))}</li>`;
+      continue;
+    }
+    if (line.trim() === '') { flushPara(); flushList(); continue; }
+    flushList();
+    if (!inPara) { out += '<p>'; inPara = true; }
+    out += inline(line) + ' ';
+  }
+  flushPara(); flushList();
+  return out;
+}
+
+function toast(msg, kind = 'ok', ms = 2800) {
+  const host = $('#toast-host');
+  const t = el('div', { class: `toast ${kind}` }, msg);
+  host.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+// =============================================================================
+// Bio-data fetch (same APIs as index.html, simplified for context attachment)
+// =============================================================================
+const API = {
+  uniprotSearch: (sym) =>
+    `https://rest.uniprot.org/uniprotkb/search?query=${encodeURIComponent(`gene:${sym} AND organism_id:9606 AND reviewed:true`)}&format=json&size=1`,
+  ncbiGeneSearch: (sym) =>
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gene&term=${encodeURIComponent(`${sym}[sym] AND human[orgn]`)}&retmode=json`,
+  ncbiGeneSummary: (uid) =>
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gene&id=${uid}&retmode=json`,
+  pubmedSearch: (sym) =>
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(`${sym}[gene] AND english[lang]`)}&sort=date&retmax=5&retmode=json`,
+  pubmedSummary: (ids) =>
+    `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${ids.join(',')}&retmode=json`,
+  reactomePathways: (acc) =>
+    `https://reactome.org/ContentService/data/mapping/UniProt/${encodeURIComponent(acc)}/pathways?species=9606`,
+};
+
+async function getJSON(url) {
+  const r = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+async function fetchBioContext(sym) {
+  const ctx = { symbol: sym, fetched: [] };
+  // Parallel batch 1
+  const [uniRes, ncbiSearchRes, pmSearchRes] = await Promise.allSettled([
+    getJSON(API.uniprotSearch(sym)),
+    getJSON(API.ncbiGeneSearch(sym)),
+    getJSON(API.pubmedSearch(sym)),
+  ]);
+
+  if (uniRes.status === 'fulfilled' && uniRes.value?.results?.[0]) {
+    const r = uniRes.value.results[0];
+    ctx.uniprot = {
+      accession: r.primaryAccession,
+      entryName: r.uniProtkbId,
+      proteinName: r.proteinDescription?.recommendedName?.fullName?.value,
+      geneNames: (r.genes ?? []).map((g) => g.geneName?.value).filter(Boolean),
+      length: r.sequence?.length,
+      function: (r.comments ?? []).filter((c) => c.commentType === 'FUNCTION').flatMap((c) => c.texts ?? []).map((t) => t.value).join(' ').slice(0, 1800),
+    };
+    ctx.fetched.push(`UniProt:${ctx.uniprot.accession}`);
+  }
+
+  let uid = null;
+  if (ncbiSearchRes.status === 'fulfilled') uid = ncbiSearchRes.value?.esearchresult?.idlist?.[0] ?? null;
+  let pmIds = [];
+  if (pmSearchRes.status === 'fulfilled') pmIds = pmSearchRes.value?.esearchresult?.idlist ?? [];
+
+  // Parallel batch 2 (dependent)
+  const [gsumRes, pmsumRes, pathRes] = await Promise.allSettled([
+    uid ? getJSON(API.ncbiGeneSummary(uid)) : Promise.resolve(null),
+    pmIds.length ? getJSON(API.pubmedSummary(pmIds)) : Promise.resolve(null),
+    ctx.uniprot?.accession ? getJSON(API.reactomePathways(ctx.uniprot.accession)) : Promise.resolve([]),
+  ]);
+
+  if (gsumRes.status === 'fulfilled' && gsumRes.value && uid) {
+    const r = gsumRes.value.result?.[uid];
+    if (r) {
+      ctx.ncbi_gene = {
+        uid,
+        name: r.name,
+        description: r.description,
+        summary: (r.summary || '').slice(0, 1800),
+        chromosome: r.chromosome,
+        maplocation: r.maplocation,
+        aliases: (r.otheraliases || '').split(/,\s*/).filter(Boolean),
+      };
+      ctx.fetched.push(`NCBI:gene/${uid}`);
+    }
+  }
+  if (pmsumRes.status === 'fulfilled' && pmsumRes.value?.result) {
+    const r = pmsumRes.value.result;
+    ctx.pubmed = (r.uids || []).map((u) => ({
+      pmid: u,
+      title: r[u]?.title,
+      journal: r[u]?.source,
+      pubdate: r[u]?.pubdate,
+      authors: (r[u]?.authors || []).map((a) => a.name).slice(0, 4),
+    }));
+    ctx.fetched.push(`PubMed:${ctx.pubmed.length} hits`);
+  }
+  if (pathRes.status === 'fulfilled' && Array.isArray(pathRes.value)) {
+    ctx.reactome = pathRes.value.slice(0, 10).map((p) => ({ stId: p.stId, name: p.displayName }));
+    if (ctx.reactome.length) ctx.fetched.push(`Reactome:${ctx.reactome.length} pathways`);
+  }
+  return ctx;
+}
+
+// Extract a candidate gene symbol from a free-text question.
+// Heuristic: all-caps 3–8 char strings that aren't common English words.
+function extractCandidateSymbol(text) {
+  const blacklist = new Set([
+    'AND', 'THE', 'FOR', 'NOT', 'BUT', 'OUR', 'YOU', 'ARE', 'HAS', 'HAD', 'WHO',
+    'DNA', 'RNA', 'MRNA', 'CDNA', 'PCR', 'PD', 'AD', 'ALS', 'FTD', 'HD', 'AAV',
+    'LBD', 'PSP', 'CBD', 'CTE', 'MND', 'TBI', 'CNS', 'PNS',
+  ]);
+  const tokens = (text.match(/\b[A-Z][A-Z0-9]{2,7}\b/g) || []);
+  for (const t of tokens) if (!blacklist.has(t)) return t;
+  // Try mixed-case patterns like Alpha-synuclein → SNCA mapping (limited)
+  if (/alpha[\s-]?synuclein/i.test(text)) return 'SNCA';
+  if (/amyloid precursor/i.test(text)) return 'APP';
+  if (/tau\b/i.test(text)) return 'MAPT';
+  if (/parkin\b/i.test(text)) return 'PRKN';
+  if (/leucine[\s-]?rich repeat kinase/i.test(text)) return 'LRRK2';
+  if (/glucocerebrosidase/i.test(text)) return 'GBA';
+  return null;
+}
+
+// =============================================================================
+// Model state load
+// =============================================================================
+async function tryLoadCommittedModel() {
+  try {
+    const r = await fetch(TRAINED_MODEL_PATH, { cache: 'no-store' });
+    if (!r.ok) return null;
+    const text = await r.text();
+    // The committed file is plain JSON, but a missing file may return an HTML 404
+    if (text.trim().startsWith('<')) return null;
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+async function resolveModelSource() {
+  // Already loaded from localStorage by BioscopeModel constructor. If that
+  // localStorage state is the default (no ratings, no examples), check if
+  // the deployed site committed a trained model we should prefer.
+  const isFresh =
+    model.state.ratingsLog.length === 0 &&
+    model.state.fewShotExamples.length === 0 &&
+    model.state.avoidPatterns.length === 0 &&
+    model.state.versionHistory.length <= 1;
+
+  if (!isFresh) {
+    state.modelSource = 'localstorage';
+    return;
+  }
+
+  const committed = await tryLoadCommittedModel();
+  if (committed) {
+    try {
+      model.import(committed);
+      state.modelSource = 'committed';
+    } catch (e) {
+      console.warn('Committed trained model failed to import:', e);
+      state.modelSource = 'default';
+    }
+  } else {
+    state.modelSource = 'default';
+  }
+}
+
+function renderModelStatus() {
+  const pill = $('#model-status-pill');
+  if (state.modelSource === 'localstorage') {
+    pill.className = 'pill trained';
+    pill.textContent = `Trained · ${model.version} · ${model.ratingsLog.length} labels`;
+    pill.title = `Loaded from your local training session (${model.fewShotExamples.length} examples, ${model.avoidPatterns.length} avoid patterns).`;
+  } else if (state.modelSource === 'committed') {
+    pill.className = 'pill trained';
+    pill.textContent = `Trained · ${model.version} (committed)`;
+    pill.title = 'Loaded from assets/trained-model.json — the canonical trained model shipped with this site.';
+  } else {
+    pill.className = 'pill default';
+    pill.textContent = 'Default model · untrained';
+    pill.title = 'No trained model loaded. Answers use the bundled default prompt only.';
+  }
+}
+
+// =============================================================================
+// Conversation persistence
+// =============================================================================
+function loadConversation() {
+  try {
+    const raw = localStorage.getItem(ASK_HISTORY_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch { return []; }
+}
+function saveConversation() {
+  try {
+    localStorage.setItem(ASK_HISTORY_KEY, JSON.stringify(state.conversation));
+  } catch (e) { console.error('persist failed', e); }
+}
+function clearConversation() {
+  state.conversation = [];
+  saveConversation();
+  renderConversation();
+}
+
+// =============================================================================
+// Conversation rendering
+// =============================================================================
+function renderConversation() {
+  const host = $('#conversation');
+  host.innerHTML = '';
+  if (state.conversation.length === 0) {
+    host.appendChild(
+      el('div', { class: 'empty-intro' },
+        el('p', {}, 'Ask a question about a protein, gene, or pathway. ',
+          el('strong', {}, 'Tip:'),
+          ' if your question mentions an HGNC symbol like ', el('code', {}, 'SNCA'),
+          ' I\'ll fetch live UniProt / NCBI / Reactome / PubMed data and include it as context.'),
+      ),
+    );
+    return;
+  }
+  for (const turn of state.conversation) {
+    const bubble = el('div', { class: 'bubble' });
+    bubble.innerHTML = renderMarkdown(turn.content);
+    const meta = el('div', { class: 'meta' });
+    if (turn.gene) meta.appendChild(el('span', { class: 'tag cited' }, `gene · ${turn.gene}`));
+    if (turn.source === 'live') meta.appendChild(el('span', { class: 'tag' }, `live · ${turn.model || ''}`));
+    if (turn.usage) meta.appendChild(el('span', { class: 'tag' }, `${turn.usage.input_tokens || 0}/${turn.usage.output_tokens || 0} tok`));
+    if (turn.modelVersion) meta.appendChild(el('span', { class: 'tag' }, `trained · ${turn.modelVersion}`));
+
+    const turnEl = el('div', { class: `turn ${turn.role} ${turn.streaming ? 'streaming' : ''}` },
+      el('div', { class: 'who' }, turn.role === 'user' ? 'You' : 'bioscope'),
+      bubble,
+      meta,
+    );
+
+    if (turn.citations && turn.citations.length) {
+      const cit = el('div', { class: 'citations' },
+        el('h4', {}, 'Sources cited or referenced'),
+        el('ul', {}, ...turn.citations.map((c) => el('li', {}, el('a', { href: c.url, target: '_blank', rel: 'noopener' }, c.label), c.note ? ` — ${c.note}` : ''))),
+      );
+      turnEl.appendChild(cit);
+    }
+
+    host.appendChild(turnEl);
+  }
+  // Scroll to bottom
+  host.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function streamingTurnUpdate(text) {
+  const last = state.conversation[state.conversation.length - 1];
+  if (!last || last.role !== 'assistant') return;
+  last.content = text;
+  renderConversation();
+}
+
+// =============================================================================
+// Citations derivation — pull identifiers out of the answer + bio context
+// =============================================================================
+function deriveCitations(answer, ctx) {
+  const list = [];
+  // UniProt accessions
+  const accs = new Set((answer.match(/\b[OPQ][0-9][A-Z0-9]{3}[0-9]\b|\b[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}\b/g) || []));
+  if (ctx?.uniprot?.accession) accs.add(ctx.uniprot.accession);
+  for (const a of accs) {
+    list.push({ label: `UniProt:${a}`, url: `https://www.uniprot.org/uniprotkb/${a}/entry` });
+  }
+  // PMIDs
+  const pmids = new Set((answer.match(/PMID:?\s*\d{6,9}/gi) || []).map((m) => m.replace(/PMID:?\s*/i, '')));
+  for (const p of pmids) {
+    list.push({ label: `PMID:${p}`, url: `https://pubmed.ncbi.nlm.nih.gov/${p}/` });
+  }
+  // Reactome stable IDs
+  const stIds = new Set((answer.match(/R-[A-Z]{3}-\d+/g) || []));
+  for (const s of stIds) {
+    list.push({ label: s, url: `https://reactome.org/PathwayBrowser/#/${s}` });
+  }
+  // Ensembl IDs
+  const ensg = new Set((answer.match(/ENSG\d{11}/g) || []));
+  for (const e of ensg) {
+    list.push({ label: e, url: `https://www.ensembl.org/Homo_sapiens/Gene/Summary?g=${e}` });
+  }
+  return list;
+}
+
+// =============================================================================
+// Ask flow
+// =============================================================================
+async function ask() {
+  if (state.streaming) return;
+  const apiKey = (loadApiKey() || $('#api-key-input').value).trim();
+  const question = $('#question').value.trim();
+  if (!question) { toast('Type a question first.', 'warn'); return; }
+  if (!apiKey || !looksLikeAnthropicKey(apiKey)) {
+    toast('Paste your Anthropic API key in the header (sk-ant-…).', 'warn', 4500);
+    return;
+  }
+  saveApiKey(apiKey);
+
+  const explicitSym = $('#gene-hint').value.trim().toUpperCase() || null;
+  const sym = explicitSym || extractCandidateSymbol(question);
+
+  // Add user turn
+  state.conversation.push({
+    role: 'user', content: question, ts: Date.now(),
+    gene: sym || null,
+  });
+  renderConversation();
+  $('#question').value = '';
+  $('#gene-hint').value = '';
+
+  // Add assistant placeholder
+  state.conversation.push({
+    role: 'assistant', content: '', ts: Date.now(),
+    source: 'live', streaming: true,
+    modelVersion: model.version,
+    model: model.settings.anthropicModel,
+    gene: sym || null,
+  });
+  renderConversation();
+
+  state.streaming = true;
+  $('#ask-btn').disabled = true;
+  $('#ask-btn').textContent = sym ? `Fetching ${sym} context…` : 'Thinking…';
+
+  // Fetch bio data context if we have a symbol
+  let bioCtx = null;
+  if (sym) {
+    try { bioCtx = await fetchBioContext(sym); }
+    catch (e) { console.warn('bio fetch failed', e); }
+  }
+
+  // Build the system prompt: trained-model systemPrompt OR neurodegen default,
+  // plus avoid patterns appended.
+  const trainedPromptIsDefault = model.systemPrompt === DEFAULT_SYSTEM_PROMPT;
+  let systemPrompt = trainedPromptIsDefault ? NEURODEGEN_SYSTEM_PROMPT : model.systemPrompt;
+  if (model.avoidPatterns.length > 0) {
+    systemPrompt += '\n\n## Avoid these specific failure modes (distilled from SME-rated past outputs):\n';
+    for (const av of model.avoidPatterns) systemPrompt += `- ${av.pattern}\n`;
+  }
+
+  // Build messages: few-shot history (if any) + prior conversation + new user turn with context attached.
+  const messages = [];
+
+  // Few-shot examples as prior user/assistant turns
+  for (const ex of model.fewShotExamples.slice(-3)) {
+    messages.push({ role: 'user', content: `(Example) Produce a brief on the gene ${ex.gene}.` });
+    messages.push({ role: 'assistant', content: ex.brief });
+  }
+
+  // Prior conversation (skip the just-added placeholder)
+  const priors = state.conversation.slice(0, -1);
+  for (const t of priors.slice(0, -1)) {
+    messages.push({ role: t.role, content: t.content });
+  }
+
+  // The new user turn with bio_context attached
+  let userContent = question;
+  if (bioCtx && bioCtx.fetched.length > 0) {
+    userContent = `<bio_context>\n${JSON.stringify(bioCtx, null, 2)}\n</bio_context>\n\n${question}`;
+  }
+  messages.push({ role: 'user', content: userContent });
+
+  try {
+    $('#ask-btn').textContent = 'Streaming…';
+    const result = await streamClaude({
+      apiKey,
+      model: model.settings.anthropicModel,
+      system: systemPrompt,
+      messages,
+      maxTokens: model.settings.anthropicMaxTokens,
+      onToken: (_d, full) => streamingTurnUpdate(full),
+    });
+    const last = state.conversation[state.conversation.length - 1];
+    last.streaming = false;
+    last.content = result.text;
+    last.usage = result.usage;
+    last.citations = deriveCitations(result.text, bioCtx);
+    if (bioCtx?.fetched?.length) {
+      // Also include the source APIs hit (even if not cited in the answer)
+      const seen = new Set(last.citations.map((c) => c.label));
+      if (bioCtx.uniprot?.accession && !seen.has(`UniProt:${bioCtx.uniprot.accession}`)) {
+        last.citations.unshift({
+          label: `UniProt:${bioCtx.uniprot.accession}`,
+          url: `https://www.uniprot.org/uniprotkb/${bioCtx.uniprot.accession}/entry`,
+          note: 'source data fetched',
+        });
+      }
+    }
+    saveConversation();
+    renderConversation();
+    toast(`Answered (${result.usage.input_tokens || 0} in / ${result.usage.output_tokens || 0} out tokens).`, 'ok');
+  } catch (err) {
+    console.error(err);
+    const last = state.conversation[state.conversation.length - 1];
+    last.content = `_bioscope: ${err.message || err}_`;
+    last.streaming = false;
+    renderConversation();
+    toast(`Ask failed: ${err.message}`, 'danger', 5000);
+  } finally {
+    state.streaming = false;
+    $('#ask-btn').disabled = false;
+    $('#ask-btn').textContent = 'Ask';
+  }
+}
+
+// =============================================================================
+// Header key field (reused from train app)
+// =============================================================================
+function renderKeyField() {
+  const input = $('#api-key-input');
+  const status = $('#api-key-status');
+  const stored = loadApiKey();
+  if (input.value === '' && stored) input.value = stored;
+  const value = input.value.trim();
+  if (!value) { status.className = 'status none'; status.textContent = 'no key'; }
+  else if (looksLikeAnthropicKey(value)) { status.className = 'status ok'; status.textContent = 'saved'; }
+  else { status.className = 'status bad'; status.textContent = 'bad format'; }
+}
+
+// =============================================================================
+// Boot
+// =============================================================================
+async function boot() {
+  // Populate model picker
+  const sel = $('#api-model');
+  sel.innerHTML = '';
+  for (const m of ANTHROPIC_MODELS) sel.appendChild(el('option', { value: m.id }, m.label));
+  sel.value = model.settings.anthropicModel;
+  sel.addEventListener('change', (e) => model.updateSettings({ anthropicModel: e.target.value }));
+
+  // Key field
+  $('#api-key-input').addEventListener('input', () => {
+    const v = $('#api-key-input').value.trim();
+    saveApiKey(v || null);
+    renderKeyField();
+  });
+  renderKeyField();
+
+  // Sample questions
+  const sq = $('#sample-questions');
+  sq.appendChild(el('span', { class: 'lbl' }, 'Try'));
+  for (const sample of SAMPLE_QUESTIONS) {
+    sq.appendChild(
+      el('button', {
+        class: 'chip',
+        onClick: () => {
+          $('#question').value = sample.q;
+          $('#gene-hint').value = sample.gene;
+          $('#question').focus();
+        },
+      }, sample.gene),
+    );
+  }
+
+  // Ask button + enter-to-submit (Cmd/Ctrl+Enter)
+  $('#ask-btn').addEventListener('click', ask);
+  $('#question').addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ask();
+  });
+
+  // Clear history
+  $('#clear-history').addEventListener('click', () => {
+    if (state.conversation.length === 0) return;
+    if (!confirm('Clear the current conversation? (Your trained model is unaffected.)')) return;
+    clearConversation();
+    toast('Conversation cleared.');
+  });
+
+  // Export conversation
+  $('#export-conv').addEventListener('click', () => {
+    if (state.conversation.length === 0) { toast('Nothing to export yet.', 'warn'); return; }
+    const md = state.conversation.map((t) => {
+      const h = t.role === 'user' ? '## You\n\n' : '## bioscope\n\n';
+      return h + t.content;
+    }).join('\n\n---\n\n');
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'bioscope-conversation.md'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  // Resolve which model to use and render status
+  await resolveModelSource();
+  renderModelStatus();
+  model.on('change', renderModelStatus);
+
+  // Load conversation history
+  state.conversation = loadConversation();
+  renderConversation();
+}
+
+document.addEventListener('DOMContentLoaded', boot);

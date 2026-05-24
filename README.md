@@ -61,6 +61,62 @@ Reactome mapping                │                       │                  �
 Failures in any one source degrade gracefully — the other sections still render with their
 own data.
 
+## Training mode (`/train.html`) — human-in-the-loop SME GUI
+
+`bioscope-web` ships a second page, **[train.html](train.html)**, that turns the brief
+viewer into a labelling and prompt-engineering workbench. It's the GUI a subject-matter
+expert uses to teach the brief generator what "good" looks like.
+
+![bioscope-web training mode](docs/screenshot-train.png)
+
+**The "model" is a JSON object in your browser.** It has no neural weights of its own;
+instead it parameterises every brief request through four knobs the learning loop updates
+from your preference data:
+
+- `systemPrompt` — instructions handed to Claude (or the mock template).
+- `fewShotExamples` — briefs you rated ≥ 4/5 get promoted into Claude's in-context example pool.
+- `avoidPatterns` — failure modes distilled from briefs you rated ≤ 2/5 are appended to the system prompt as explicit "don't do this" rules.
+- `rubricWeights` — dimensions you tend to rate harshly get more weight in the overall score, so the rubric reflects what you care about, not a uniform average.
+
+The model bumps its version (v0.1 → v0.2 → …) every time the learning loop fires (default: every 3 ratings), and every bump is logged in a version timeline with the diff. State persists in `localStorage`; you can import/export the whole model as JSON, and you can export your accumulated labels in three industry-standard formats: full state JSON, preference pairs as DPO JSONL (chosen/rejected), gold-standard briefs as SFT JSONL (prompt/completion).
+
+**Two run modes:**
+
+| Mode | What it does | When to use it |
+| --- | --- | --- |
+| **Mock** (default) | Uses a bundled pool of 18 hand-crafted briefs (6 neurodegen + cancer-canon genes × 3 quality variants each: complete-and-cited, partial, hedging-and-vague). Zero API key, fully offline after the page loads. | Demo to employers, practise labelling, or build up enough preference data to be worth running against a real model. |
+| **Live** | Calls Claude directly from the browser using your Anthropic API key (`anthropic-dangerous-direct-browser-access` header). Key is stored only in `localStorage`, sent only to `api.anthropic.com`. Streaming via SSE. Lets you pick Sonnet / Opus / Haiku from a dropdown. | Real RLHF-style training: every rating you make actually shifts the next generation, because the model state shapes the next prompt sent to Claude. |
+
+**Three labelling workflows:**
+
+1. **Rate one brief on four dimensions** — Factuality, Completeness, Citation, Clarity. Each 1–5. Optional comment becomes the distilled avoid-pattern if you rate ≤ 2. Saves a `Rating` to the log.
+2. **A/B preference** — two briefs side-by-side, pick the winner (or Tie). In live mode, A vs B is *current trained model* vs *bare baseline prompt*, so your preferences become directly DPO-trainable data. In mock mode, A vs B is *high-quality variant* vs *low-quality variant*.
+3. **Save as gold standard** — when a brief is good enough to use as an exemplar, save it as an SFT example. Exports as a JSONL with `{messages: [system, user, assistant]}` ready for OpenAI/Anthropic fine-tuning APIs.
+
+**Gene panel CRUD.** The right column lists the genes available in the picker. You can add new symbols (live mode supports any HGNC symbol; mock mode is limited to the bundled six). Each entry stores aliases, free-text notes, and "expected tokens" used by future eval extensions.
+
+**Metrics dashboard.** Counters (ratings, preferences, gold standards, examples, avoid patterns), a rating-distribution histogram, per-dimension trend over the last 12 ratings, and the full version-bump timeline.
+
+### File structure for training mode
+
+```
+bioscope-web/
+├── train.html              # the training-mode page
+├── assets/
+│   ├── train.css           # all training-mode styles
+│   ├── model.js            # BioscopeModel class — state + learning loop
+│   ├── mock-briefs.js      # the 18-brief bundled pool
+│   ├── anthropic.js        # direct-from-browser Anthropic adapter
+│   └── app.js              # main wiring, UI handlers, rendering
+```
+
+### Roadmap: GUI 2
+
+Once you've trained the model to your satisfaction (and exported the state), a second GUI
+(`use.html`, planned) will load any model export and act as a clean end-user tool: pick a
+gene, get a brief, no labelling controls, no model state visible. The training GUI produces
+the artifact; the use GUI consumes it.
+
 ## Local development
 
 It's a static page. Open it directly, or serve it for the deep-link `?gene=…` routing:
@@ -74,11 +130,19 @@ python3 -m http.server 8765
 
 ```
 bioscope-web/
-├── index.html                  # the whole app — HTML, CSS, vanilla JS
+├── index.html                  # public brief viewer (no training controls)
+├── train.html                  # human-in-the-loop SME training GUI
+├── assets/
+│   ├── train.css               # styles for train.html
+│   ├── model.js                # BioscopeModel — state + learning loop
+│   ├── mock-briefs.js          # bundled 18-brief pool for mock mode
+│   ├── anthropic.js            # direct-from-browser Anthropic adapter
+│   └── app.js                  # main wiring for train.html
 ├── preview.png                 # Handshake AI Showcase tile (SNCA brief above the fold)
 ├── docs/
 │   ├── screenshot-snca-full.png
-│   └── screenshot-snca-brief.png
+│   ├── screenshot-snca-brief.png
+│   └── screenshot-train.png    # training-mode hero shot for the README
 ├── .github/workflows/pages.yml # deploys to GitHub Pages on push to main
 ├── .nojekyll                   # serve as-is, skip Jekyll processing
 ├── LICENSE
