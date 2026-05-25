@@ -125,16 +125,12 @@
       <div id="connection-pane" style="display: none">
         <!-- Sub-mode toggle: rate established edges, draft a brand-new pair,
              or pick from AI-proposed candidate pairs the SME hasn't seen. -->
-        <div class="conn-submode" role="tablist" aria-label="Connection-training mode"
-             style="display:flex; gap:6px; margin: 0 0 12px; padding: 4px; border:1px solid var(--rule); border-radius: 10px; background: var(--card);">
+        <div class="conn-submode" role="tablist" aria-label="Connection-training mode">
           <button type="button" data-cmsub="established" class="active"
-                  style="flex:1; padding:7px 10px; border:none; background:transparent; border-radius:7px; font-size:12.5px; cursor:pointer;"
-                  title="Rate one of the ~273 existing curated edges">Established edges</button>
+                  title="Rate one of the ~294 existing curated edges">Established edges</button>
           <button type="button" data-cmsub="freepair"
-                  style="flex:1; padding:7px 10px; border:none; background:transparent; border-radius:7px; font-size:12.5px; cursor:pointer;"
-                  title="Pick any two genes and have Claude propose a NEW connection">Free pair (new)</button>
+                  title="Pick any two genes and author or have Claude draft a NEW connection">Free pair (new)</button>
           <button type="button" data-cmsub="aisuggest"
-                  style="flex:1; padding:7px 10px; border:none; background:transparent; border-radius:7px; font-size:12.5px; cursor:pointer;"
                   title="Let Claude suggest candidate gene pairs that aren't connected yet">AI-suggested pairs</button>
         </div>
 
