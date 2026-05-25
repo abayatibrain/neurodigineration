@@ -1,4 +1,4 @@
-// bioscope-web — interactive cross-disease network.
+// neurodigineration — interactive cross-disease network.
 //
 // D3 v7 force-directed graph. Each node = a gene/protein; each edge = a
 // real biological relationship with citations. The SME judges the edges
@@ -207,10 +207,10 @@ const edgeSel = gEdges.selectAll('path.edge')
   .data(links, edgeId)
   .enter()
   .append('path')
-  .attr('class', 'edge')
+  .attr('class', (d) => `edge${d.tentative ? ' tangential' : ''}`)
   .attr('stroke', (d) => EDGE_COLORS[d.kind])
   .attr('stroke-width', (d) => 0.9 + 2.6 * (d.strength || 0.5))
-  .attr('opacity', 0.65)
+  .attr('opacity', (d) => d.tentative ? 0.5 : 0.65)
   .style('pointer-events', 'none');
 
 // ---------------------------------------------------------------------------
@@ -401,7 +401,7 @@ function renderPanelForNode(d) {
   links.appendChild(el('h3', {}, 'External resources'));
   const ul = el('ul');
   ul.appendChild(el('li', {}, el('a', { href: `https://www.genenames.org/tools/search/#!/?query=${encodeURIComponent(d.id)}`, target: '_blank', rel: 'noopener' }, 'HGNC')));
-  ul.appendChild(el('li', {}, el('a', { href: `./ask.html?gene=${encodeURIComponent(d.id)}`, target: '_blank' }, 'Open in bioscope ask')));
+  ul.appendChild(el('li', {}, el('a', { href: `./ask.html?gene=${encodeURIComponent(d.id)}`, target: '_blank' }, 'Open in neurodigineration ask')));
   ul.appendChild(el('li', {}, el('a', { href: `./index.html?gene=${encodeURIComponent(d.id)}`, target: '_blank' }, 'Open brief in viewer')));
   links.appendChild(ul);
   host.appendChild(links);
@@ -449,6 +449,11 @@ function renderPanelForEdge(d) {
   host.appendChild(
     el('span', { class: 'edge-kind-pill', style: `background:${EDGE_COLORS[d.kind]}22;color:${EDGE_COLORS[d.kind]}` }, d.kind),
   );
+  if (d.tentative) {
+    host.appendChild(
+      el('span', { class: 'edge-kind-pill', style: 'margin-left:6px; background:var(--gold-soft); color:var(--gold);' }, 'Tangential · needs SME validation'),
+    );
+  }
 
   // Explanation
   const note = el('section', { class: 'block' });
@@ -646,7 +651,7 @@ window.addEventListener('resize', () => {
 // The user-suggested edge is also injected into the live `links` array so
 // it appears in the SVG; on reload it's gone (we don't persist the data
 // graph here — but the EDGE RATING is persisted via recordEdgeRating).
-const SUGGEST_PROMPT = `You are bioscope, proposing a biological connection between two genes/proteins from a free-text SME prompt.
+const SUGGEST_PROMPT = `You are neurodigineration, proposing a biological connection between two genes/proteins from a free-text SME prompt.
 
 The SME may give you two gene symbols (e.g., "SNCA TFEB"), a question (e.g., "is BRCA1 connected to neurodegeneration?"), or a description. Identify the most relevant gene/protein pair and propose the strongest documented connection.
 
@@ -811,7 +816,7 @@ function rerenderGraphIncremental() {
 // ---------------------------------------------------------------------------
 // The inline script in network.html applies the saved theme BEFORE first
 // paint so there's no flash. Here we just wire the toggle button.
-const THEME_KEY = 'bioscope-network-theme';
+const THEME_KEY = 'nd-network-theme';
 function currentTheme() {
   return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
 }

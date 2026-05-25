@@ -1,4 +1,4 @@
-/* bioscope-web network page — interactive cross-disease graph.
+/* neurodigineration network page — interactive cross-disease graph.
  * Dark scientific aesthetic to read as a "data instrument," not a website.
  * Three layers: header (status), full-bleed canvas (D3), slide-in detail panel. */
 
@@ -480,6 +480,11 @@ nav.site-nav a:hover { color: var(--accent); }
 
 /* Transient user-suggested edge styling */
 .edge.user-edge { stroke-dasharray: 6 4; }
+
+/* Tangential edges — author flagged them tentative; render dotted so the
+ * SME can spot at a glance that these are candidates pending validation. */
+.edge.tangential { stroke-dasharray: 2 3; opacity: 0.55; }
+.edge.tangential.highlighted { opacity: 1; }
 
 /* ===== Toast (shared) ===== */
 .toast-host {

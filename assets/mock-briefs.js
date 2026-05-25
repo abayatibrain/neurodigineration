@@ -1,4 +1,4 @@
-// Mock brief pool for bioscope-web training mode.
+// Mock brief pool for neurodigineration training mode.
 //
 // Six neurodegeneration + cancer-canon genes, three quality variants each.
 // Variants are deliberately differentiable on the rubric the SME rates:

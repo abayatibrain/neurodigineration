@@ -1,6 +1,6 @@
 // Cross-disease neurodegeneration network — curated relationship graph.
 //
-// Each node represents a gene/protein from the bioscope panel. `prevalence`
+// Each node represents a gene/protein from the neurodigineration panel. `prevalence`
 // (0–1) drives the visual box size — it encodes how prominent the gene is
 // in its primary disease, accounting for both monogenic cause-prevalence
 // and risk-modifier strength. The intent is: the boxes you see biggest
@@ -113,6 +113,46 @@ export const NODES = [
   { id: 'SPG7',   protein: 'paraplegin (SPG7)',     disease: 'SHARED', prevalence: 0.55, role: 'm-AAA inner-membrane protease subunit; hereditary spastic paraplegia type 7; processes OPA1' },
   { id: 'TOMM70', protein: 'TOMM70 / TOM70',        disease: 'SHARED', prevalence: 0.45, role: 'outer-membrane import receptor; brings PINK1 to TOM complex; recognises C-terminal mitochondrial signals', secondary: ['PD'] },
   { id: 'NDUFS1', protein: 'Complex I (NDUFS1)',    disease: 'SHARED', prevalence: 0.50, role: 'core subunit of mitochondrial Complex I; biallelic loss causes Leigh syndrome; complex-I deficiency in PD substantia nigra' },
+
+  // ===== Round 4 — tangential expansion (dotted edges; pending SME validation) =====
+  // Synaptic vesicle / SNARE
+  { id: 'SYT1',    protein: 'synaptotagmin-1', disease: 'SHARED', prevalence: 0.45, role: 'Ca²⁺ sensor for SV fusion; binds αSyn and the SNARE complex', secondary: ['PD'] },
+  { id: 'STX1A',   protein: 'syntaxin-1A',     disease: 'SHARED', prevalence: 0.40, role: 't-SNARE; assembles with VAMP2 + SNAP25', secondary: ['PD'] },
+  { id: 'SNAP25',  protein: 'SNAP-25',         disease: 'SHARED', prevalence: 0.55, role: 't-SNARE; reduced in AD presynapses', secondary: ['AD','PD'] },
+  { id: 'VAMP2',   protein: 'synaptobrevin-2', disease: 'SHARED', prevalence: 0.45, role: 'v-SNARE on SVs; bound by αSyn', secondary: ['PD'] },
+  { id: 'SYP',     protein: 'synaptophysin',   disease: 'SHARED', prevalence: 0.55, role: 'abundant SV marker; early loss in AD', secondary: ['AD'] },
+  { id: 'SV2A',    protein: 'SV2A',            disease: 'SHARED', prevalence: 0.45, role: 'universal SV marker; PET biomarker of synaptic density' },
+  // PSD scaffolds + glutamate receptors
+  { id: 'DLG4',    protein: 'PSD-95',          disease: 'SHARED', prevalence: 0.55, role: 'postsynaptic scaffold; anchors NMDA/AMPA', secondary: ['ALS','AD'] },
+  { id: 'GRIN1',   protein: 'NMDA-R GluN1',    disease: 'SHARED', prevalence: 0.45, role: 'obligate NMDA-R subunit; Aβ-driven endocytosis', secondary: ['AD'] },
+  { id: 'GRIA1',   protein: 'AMPA-R GluA1',    disease: 'SHARED', prevalence: 0.40, role: 'AMPA subunit; trafficking affected by Aβ-PrPc', secondary: ['AD'] },
+  { id: 'HOMER1',  protein: 'Homer-1',         disease: 'SHARED', prevalence: 0.40, role: 'PSD scaffold linking mGluRs to IP3R' },
+  // Mitochondrial fission receptors
+  { id: 'FIS1',    protein: 'Fis1',            disease: 'SHARED', prevalence: 0.40, role: 'OMM DRP1 receptor; recruited by Aβ in AD', secondary: ['AD','PD'] },
+  { id: 'MFF',     protein: 'MFF',             disease: 'SHARED', prevalence: 0.45, role: 'primary DRP1 receptor; AMPK-regulated', secondary: ['AD'] },
+  { id: 'MIEF1',   protein: 'MID49',           disease: 'SHARED', prevalence: 0.40, role: 'DRP1 receptor co-recruiting MFF' },
+  // DA-neuron axis
+  { id: 'TH',      protein: 'tyrosine hydroxylase', disease: 'PD', prevalence: 0.85, role: 'rate-limiting dopamine synthesis enzyme; biochemical signature lost in PD substantia nigra' },
+  { id: 'SLC6A3',  protein: 'DAT',             disease: 'PD',  prevalence: 0.70, role: 'dopamine transporter; the DAT-SPECT imaging target' },
+  { id: 'SLC18A2', protein: 'VMAT2',           disease: 'PD',  prevalence: 0.55, role: 'vesicular monoamine transporter; reduced in PD' },
+  // AD LOAD GWAS
+  { id: 'PICALM',  protein: 'PICALM',          disease: 'AD',  prevalence: 0.55, role: 'consistent LOAD GWAS hit; clathrin assembly + endocytosis' },
+  { id: 'CD2AP',   protein: 'CD2AP',           disease: 'AD',  prevalence: 0.45, role: 'LOAD GWAS hit; endocytic adaptor; APP processing' },
+  { id: 'TOMM40',  protein: 'TOM40',           disease: 'AD',  prevalence: 0.50, role: 'OMM channel; chr19 next to APOE; confounded AD risk', secondary: ['SHARED'] },
+  // ALS extension
+  { id: 'UBQLN2',  protein: 'ubiquilin-2',     disease: 'ALS', prevalence: 0.55, role: 'X-linked ALS/FTD; ubiquitin shuttle' },
+  { id: 'KIF5A',   protein: 'kinesin-5A',      disease: 'ALS', prevalence: 0.55, role: 'anterograde axonal motor; ALS25 + HSP10' },
+  { id: 'ANG',     protein: 'angiogenin',      disease: 'ALS', prevalence: 0.45, role: 'RNase A family; ALS9; tRNA-fragment biology' },
+  { id: 'CHCHD10', protein: 'CHCHD10',         disease: 'ALS', prevalence: 0.50, role: 'mitochondrial IMS protein; ALS22/FTD' },
+  // Autophagy core extensions
+  { id: 'RB1CC1',  protein: 'FIP200',          disease: 'SHARED', prevalence: 0.55, role: 'ULK1-complex scaffold; loss abolishes neuronal autophagy' },
+  { id: 'ATG12',   protein: 'ATG12',           disease: 'SHARED', prevalence: 0.50, role: 'ubiquitin-like; ATG12-ATG5 conjugate is the LC3-lipidation E3' },
+  { id: 'ATG16L1', protein: 'ATG16L1',         disease: 'SHARED', prevalence: 0.50, role: 'recruits ATG12-ATG5 to phagophore' },
+  { id: 'STX17',   protein: 'syntaxin-17',     disease: 'SHARED', prevalence: 0.55, role: 'autophagosome SNARE; fuses with LAMP1+ lysosomes via SNAP29 + VAMP8' },
+  // Inflammation
+  { id: 'NLRP3',   protein: 'NLRP3',           disease: 'SHARED', prevalence: 0.55, role: 'inflammasome sensor activated by Aβ + αSyn fibrils; drives chronic neuroinflammation', secondary: ['AD','PD'] },
+  // Iron / NBIA
+  { id: 'FTL',     protein: 'ferritin light',  disease: 'NBIA', prevalence: 0.55, role: 'iron storage; mutations cause neuroferritinopathy' },
 
   // ===== Round 3 — additions from Bayati & Chen review =====
   { id: 'CD63',    protein: 'CD63 (LAMP3)',         disease: 'LSD',    prevalence: 0.55, role: 'lysosomal/late-endosomal tetraspanin; LAMP family; PD-relevant lysosomal trafficking', secondary: ['PD'] },
@@ -483,6 +523,110 @@ export const EDGES = [
   { from: 'BECN1', to: 'TFEB', kind: 'complex', strength: 0.7,
     note: 'Both upstream regulators of the autophagy-lysosomal pathway; TFEB activation increases autophagosome biogenesis (BECN1 complex) AND lysosomal CLEAR-network output.',
     pmids: [] },
+
+  // ============================================================
+  // Round 4 — TANGENTIAL edges (drawn dotted in the network).
+  // Every edge below has `tentative: true` so the renderer styles it
+  // as a dotted line. These are candidates for SME inclusion — flag
+  // them as not-real if they're not load-bearing for the discussion.
+  // ============================================================
+  // SNARE / synaptic-vesicle axis (SNCA-centric)
+  { from: 'SNCA', to: 'SYT1',   kind: 'shared-mechanism', strength: 0.35, tentative: true, pmids: [],
+    note: 'αSyn interacts with synaptotagmin-1 at presynaptic terminals; perturbs Ca²⁺-triggered fusion in PD models. Tangential.' },
+  { from: 'SNCA', to: 'VAMP2',  kind: 'shared-mechanism', strength: 0.4, tentative: true, pmids: [],
+    note: 'αSyn binds and clusters VAMP2/synaptobrevin-2, contributing to SNARE-complex assembly defects in PD. Tangential.' },
+  { from: 'SNCA', to: 'SNAP25', kind: 'shared-mechanism', strength: 0.4, tentative: true, pmids: [],
+    note: 'αSyn aggregation reduces SNAP25 availability in SNARE complexes; presynaptic depression in PD. Tangential.' },
+  { from: 'SNCA', to: 'STX1A',  kind: 'shared-mechanism', strength: 0.35, tentative: true, pmids: [],
+    note: 'Aggregated αSyn disrupts syntaxin-1A function within the t-SNARE complex. Tangential.' },
+  { from: 'APP',  to: 'SNAP25', kind: 'opposes', strength: 0.4, tentative: true, pmids: [],
+    note: 'Aβ oligomers interfere with SNAP25-containing SNARE complex assembly, reducing presynaptic release. Tangential.' },
+  { from: 'APP',  to: 'SYP',    kind: 'opposes', strength: 0.45, tentative: true, pmids: [],
+    note: 'Aβ downregulates synaptophysin expression — synaptophysin loss is among the earliest AD presynaptic changes. Tangential.' },
+  { from: 'SV2A', to: 'SYP',    kind: 'complex', strength: 0.4, tentative: true, pmids: [],
+    note: 'Both abundant SV membrane proteins; SV2A is the [11C]UCB-J PET tracer target for synaptic-density imaging in AD/PD. Tangential.' },
+
+  // PSD / postsynaptic
+  { from: 'TARDBP', to: 'DLG4',  kind: 'opposes', strength: 0.45, tentative: true, pmids: [],
+    note: 'TDP-43 mislocalisation reduces local dendritic translation of PSD-95, weakening the postsynaptic density in ALS. Tangential.' },
+  { from: 'APP',    to: 'GRIN1', kind: 'opposes', strength: 0.5, tentative: true, pmids: [],
+    note: 'Aβ binds NMDA receptors (GluN1 obligate subunit) and drives their endocytosis, reducing postsynaptic Ca²⁺ signalling. Tangential.' },
+  { from: 'APP',    to: 'GRIA1', kind: 'opposes', strength: 0.45, tentative: true, pmids: [],
+    note: 'Aβ-PrPc-Fyn signalling triggers AMPA-R (GluA1) endocytosis, depressing synaptic transmission in AD. Tangential.' },
+  { from: 'DLG4',   to: 'GRIN1', kind: 'complex', strength: 0.45, tentative: true, pmids: [],
+    note: 'PSD-95 anchors NMDA receptors at the postsynaptic density. Tangential structural link.' },
+  { from: 'HOMER1', to: 'DLG4',  kind: 'complex', strength: 0.35, tentative: true, pmids: [],
+    note: 'PSD scaffolding partners; both required for activity-dependent synapse strengthening. Tangential.' },
+
+  // Mitochondrial fission receptors
+  { from: 'DNM1L', to: 'FIS1',  kind: 'complex', strength: 0.55, tentative: true, pmids: [],
+    note: 'FIS1 is one of four OMM DRP1 receptors; recruited during Aβ-driven mitochondrial fragmentation. Tangential.' },
+  { from: 'DNM1L', to: 'MFF',   kind: 'complex', strength: 0.6, tentative: true, pmids: [],
+    note: 'MFF is the principal OMM DRP1 receptor; AMPK phosphorylation enhances DRP1 recruitment. Tangential.' },
+  { from: 'DNM1L', to: 'MIEF1', kind: 'complex', strength: 0.5, tentative: true, pmids: [],
+    note: 'MID49 (MIEF1) recruits DRP1 alongside MFF. Tangential.' },
+
+  // DA-neuron PD axis
+  { from: 'TH',     to: 'SNCA',    kind: 'shared-disease', strength: 0.6, tentative: true, pmids: [],
+    note: 'TH+ dopaminergic neurons in substantia nigra are the principal site of αSyn pathology and dopaminergic deficit in PD. Tangential vulnerability link.' },
+  { from: 'TH',     to: 'SLC6A3',  kind: 'shared-mechanism', strength: 0.5, tentative: true, pmids: [],
+    note: 'TH and DAT co-mark dopaminergic neurons; both lost in PD substantia nigra. Tangential cell-identity link.' },
+  { from: 'SLC18A2',to: 'SLC6A3',  kind: 'shared-mechanism', strength: 0.5, tentative: true, pmids: [],
+    note: 'VMAT2 loads dopamine into SVs; DAT reuptakes it from the cleft — paired dopaminergic infrastructure. Tangential.' },
+  { from: 'SLC18A2',to: 'SNCA',    kind: 'shared-mechanism', strength: 0.35, tentative: true, pmids: [],
+    note: 'VMAT2 reduction increases cytosolic dopamine, promoting αSyn aggregation under oxidative stress. Tangential.' },
+
+  // AD LOAD GWAS axis
+  { from: 'PICALM', to: 'APP',   kind: 'shared-mechanism', strength: 0.45, tentative: true, pmids: [],
+    note: 'PICALM regulates clathrin-mediated APP endocytosis, modulating Aβ generation. Tangential AD-risk locus.' },
+  { from: 'CD2AP',  to: 'APP',   kind: 'shared-mechanism', strength: 0.4, tentative: true, pmids: [],
+    note: 'CD2AP modulates APP endocytic trafficking; LOAD GWAS hit. Tangential.' },
+  { from: 'TOMM40', to: 'APOE',  kind: 'shared-mechanism', strength: 0.5, tentative: true, pmids: [],
+    note: 'TOMM40 sits immediately upstream of APOE on chr19; its AD-risk signal is largely confounded with APOE ε4 LD. Tangential locus link.' },
+  { from: 'PICALM', to: 'BIN1',  kind: 'shared-mechanism', strength: 0.4, tentative: true, pmids: [],
+    note: 'Both LOAD GWAS endocytic-machinery hits; converge on synaptic APP processing. Tangential.' },
+
+  // ALS extension
+  { from: 'KIF5A', to: 'TARDBP',  kind: 'shared-mechanism', strength: 0.45, tentative: true, pmids: [],
+    note: 'KIF5A ALS mutations and TDP-43 pathology both compromise axonal transport, converging on motor-neuron degeneration. Tangential.' },
+  { from: 'UBQLN2', to: 'SQSTM1', kind: 'shared-mechanism', strength: 0.5, tentative: true, pmids: [],
+    note: 'Both shuttle ubiquitinated cargo between UPS and autophagy; both mutated in familial ALS/FTD. Tangential.' },
+  { from: 'UBQLN2', to: 'TARDBP', kind: 'shared-disease', strength: 0.45, tentative: true, pmids: [],
+    note: 'UBQLN2 mutations cause ALS/FTD with TDP-43 pathology — same proteinopathy class as sporadic ALS. Tangential.' },
+  { from: 'CHCHD10', to: 'CHCHD2', kind: 'shared-mechanism', strength: 0.55, tentative: true, pmids: [],
+    note: 'CHCHD10 and CHCHD2 are paralogous mitochondrial IMS proteins; both implicated in late-onset neurodegeneration (ALS22 / PARK22). Tangential.' },
+  { from: 'ANG',    to: 'TARDBP',  kind: 'shared-disease', strength: 0.35, tentative: true, pmids: [],
+    note: 'Angiogenin loss-of-function variants are rare ALS9; same disease class. Tangential.' },
+
+  // Autophagy core
+  { from: 'RB1CC1', to: 'ULK1',    kind: 'complex', strength: 0.7, tentative: true, pmids: [],
+    note: 'FIP200 + ULK1 + ATG13 + ATG101 form the autophagy-initiation complex. Tangential extension of ULK1 biology.' },
+  { from: 'ATG12',  to: 'ATG7',    kind: 'kinase-substrate', strength: 0.7, tentative: true, pmids: [],
+    note: 'ATG7 is the E1 that activates ATG12 for conjugation with ATG5. Tangential.' },
+  { from: 'ATG12',  to: 'ATG5',    kind: 'complex', strength: 0.8, tentative: true, pmids: [],
+    note: 'ATG12-ATG5 conjugate is the E3-like ligase for LC3 lipidation. Tangential.' },
+  { from: 'ATG16L1',to: 'ATG12',   kind: 'complex', strength: 0.7, tentative: true, pmids: [],
+    note: 'ATG16L1 brings the ATG12-ATG5 conjugate to the phagophore membrane. Tangential.' },
+  { from: 'STX17',  to: 'LAMP1',   kind: 'complex', strength: 0.6, tentative: true, pmids: [],
+    note: 'STX17 on autophagosomes + SNAP29 + VAMP8 on lysosomes drive autophagosome–LAMP1+ lysosome fusion. Tangential.' },
+  { from: 'STX17',  to: 'MAP1LC3B',kind: 'complex', strength: 0.5, tentative: true, pmids: [],
+    note: 'STX17 is recruited to LC3-decorated mature autophagosomes for fusion. Tangential.' },
+
+  // Inflammation
+  { from: 'NLRP3', to: 'APP',     kind: 'shared-mechanism', strength: 0.5, tentative: true, pmids: [],
+    note: 'Aβ fibrils activate the NLRP3 inflammasome in microglia, driving IL-1β release and chronic AD neuroinflammation. Tangential.' },
+  { from: 'NLRP3', to: 'SNCA',    kind: 'shared-mechanism', strength: 0.5, tentative: true, pmids: [],
+    note: 'αSyn fibrils activate NLRP3 in microglia, fuelling neuroinflammation in PD. Tangential.' },
+  { from: 'NLRP3', to: 'TREM2',   kind: 'shared-mechanism', strength: 0.35, tentative: true, pmids: [],
+    note: 'TREM2-driven microglial activation state modulates NLRP3 readiness. Tangential.' },
+
+  // Iron / NBIA
+  { from: 'FTL',    to: 'PANK2',   kind: 'shared-disease', strength: 0.45, tentative: true, pmids: [],
+    note: 'FTL (neuroferritinopathy) and PANK2 (PKAN) are both NBIA syndromes with brain iron accumulation. Tangential.' },
+  { from: 'FTL',    to: 'C19orf12',kind: 'shared-disease', strength: 0.4, tentative: true, pmids: [],
+    note: 'NBIA family — same MRI iron-accumulation phenotype. Tangential.' },
+  { from: 'FTL',    to: 'WDR45',   kind: 'shared-disease', strength: 0.4, tentative: true, pmids: [],
+    note: 'NBIA family. Tangential.' },
 
   // ===== Expanded lysosomal edges =====
   { from: 'TFEB', to: 'LAMP1', kind: 'kinase-substrate', strength: 0.9,

@@ -1,15 +1,15 @@
-# bioscope-web
+# neurodigineration-web
 
 A research-grade gene brief, composed live in the browser from four public bioinformatics APIs.
 
-Type a human gene symbol. **bioscope-web** queries [UniProt](https://www.uniprot.org/),
+Type a human gene symbol. **neurodigineration** queries [UniProt](https://www.uniprot.org/),
 [NCBI E-utilities](https://www.ncbi.nlm.nih.gov/home/develop/api/),
 [Ensembl REST](https://rest.ensembl.org/), and
 [Reactome ContentService](https://reactome.org/ContentService/) in parallel and renders a
 structured brief — protein function, gene metadata, pathway membership, and the five most
 recent PubMed citations — in the time it takes you to read this sentence.
 
-![bioscope-web showing a brief for SNCA](docs/screenshot-snca-full.png)
+![neurodigineration showing a brief for SNCA](docs/screenshot-snca-full.png)
 
 ## Live demo
 
@@ -18,12 +18,12 @@ Deep links work: append `?gene=SNCA` (or any symbol) to share a specific brief.
 
 ## What it is
 
-This is the browser-native sibling of [bioscope](https://github.com/abayatibrain/bioscope) — a TypeScript CLI that
+This is the browser-native sibling of [neurodigineration](https://github.com/abayatibrain/neurodigineration) — a TypeScript CLI that
 wraps the same four public bioinformatics APIs in a Model Context Protocol (MCP) server for
 Claude Code, with custom slash commands, scoped sub-agents, pre/post tool-use hooks, and a
 Claude Agent SDK headless build.
 
-`bioscope-web` is deliberately the minimum demonstration of that pipeline that an employer
+`neurodigineration` is deliberately the minimum demonstration of that pipeline that an employer
 can try in a single click. It has:
 
 - No backend.
@@ -63,11 +63,11 @@ own data.
 
 ## Training mode (`/train.html`) — human-in-the-loop SME GUI
 
-`bioscope-web` ships a second page, **[train.html](train.html)**, that turns the brief
+`neurodigineration` ships a second page, **[train.html](train.html)**, that turns the brief
 viewer into a labelling and prompt-engineering workbench. It's the GUI a subject-matter
 expert uses to teach the brief generator what "good" looks like.
 
-![bioscope-web training mode](docs/screenshot-train.png)
+![neurodigineration training mode](docs/screenshot-train.png)
 
 **The "model" is a JSON object in your browser.** It has no neural weights of its own;
 instead it parameterises every brief request through four knobs the learning loop updates
@@ -100,7 +100,7 @@ The model bumps its version (v0.1 → v0.2 → …) every time the learning loop
 ### File structure for training mode
 
 ```
-bioscope-web/
+neurodigineration-web/
 ├── train.html              # the training-mode page
 ├── assets/
 │   ├── train.css           # all training-mode styles
@@ -129,7 +129,7 @@ python3 -m http.server 8765
 ## Project structure
 
 ```
-bioscope-web/
+neurodigineration-web/
 ├── index.html                  # public brief viewer (no training controls)
 ├── train.html                  # human-in-the-loop SME training GUI
 ├── assets/
@@ -151,8 +151,8 @@ bioscope-web/
 
 ## Built with
 
-bioscope-web was built with [Claude Code](https://docs.claude.com/claude-code) using the
-same `bioscope` design that exposes these four APIs to Claude as MCP tools. The browser
+neurodigineration was built with [Claude Code](https://docs.claude.com/claude-code) using the
+same `neurodigineration` design that exposes these four APIs to Claude as MCP tools. The browser
 version drops the agent layer and goes straight to the APIs — the minimum thing an employer
 can click on and instantly see what subject-matter expertise looks like in code.
 

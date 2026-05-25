@@ -1,4 +1,4 @@
-// neurodigineration — ask page (GUI 2: end-user neurodegen Q&A).
+// neurodegeneration.ai — ask page (GUI 2: end-user neurodegen Q&A).
 //
 // Reads model state from the SAME localStorage key as the training GUI
 // (`nd-train-v1`). That means every rating you make in /train.html
@@ -27,7 +27,7 @@ import { loadApiKey, looksLikeAnthropicKey, saveApiKey, streamClaude, ANTHROPIC_
 const TRAINED_MODEL_PATH = './assets/trained-model.json';
 const ASK_HISTORY_KEY = 'nd-ask-history-v1';
 
-const NEURODEGEN_SYSTEM_PROMPT = `You are neurodigineration, an AI research assistant focused on the molecular biology of neurodegenerative disease.
+const NEURODEGEN_SYSTEM_PROMPT = `You are a neurodegeneration research-brief generator. a research assistant focused on the molecular biology of neurodegenerative disease.
 
 Users ask you questions about specific proteins or genes — most often: "How does PROTEIN_X relate to neurodegeneration?" or follow-ups about mechanism, genetics, clinical relevance, or therapeutic targeting in conditions like Parkinson, Alzheimer, ALS, FTD, Huntington, prion disorders, and lysosomal storage diseases.
 
@@ -299,14 +299,7 @@ function renderModelStatus() {
 // =============================================================================
 function loadConversation() {
   try {
-    let raw = localStorage.getItem(ASK_HISTORY_KEY);
-    if (!raw) {
-      const legacy = localStorage.getItem('bioscope-ask-history-v1');
-      if (legacy) {
-        raw = legacy;
-        try { localStorage.setItem(ASK_HISTORY_KEY, legacy); } catch { /* noop */ }
-      }
-    }
+    const raw = localStorage.getItem(ASK_HISTORY_KEY);
     if (!raw) return [];
     return JSON.parse(raw);
   } catch { return []; }
@@ -349,7 +342,7 @@ function renderConversation() {
     if (turn.modelVersion) meta.appendChild(el('span', { class: 'tag' }, `trained · ${turn.modelVersion}`));
 
     const turnEl = el('div', { class: `turn ${turn.role} ${turn.streaming ? 'streaming' : ''}` },
-      el('div', { class: 'who' }, turn.role === 'user' ? 'You' : 'neurodigineration'),
+      el('div', { class: 'who' }, turn.role === 'user' ? 'You' : 'neurodegeneration.ai'),
       bubble,
       meta,
     );
@@ -514,7 +507,7 @@ async function ask() {
   } catch (err) {
     console.error(err);
     const last = state.conversation[state.conversation.length - 1];
-    last.content = `_neurodigineration: ${err.message || err}_`;
+    last.content = `_bioscope: ${err.message || err}_`;
     last.streaming = false;
     renderConversation();
     toast(`Ask failed: ${err.message}`, 'danger', 5000);
@@ -592,13 +585,13 @@ async function boot() {
   $('#export-conv').addEventListener('click', () => {
     if (state.conversation.length === 0) { toast('Nothing to export yet.', 'warn'); return; }
     const md = state.conversation.map((t) => {
-      const h = t.role === 'user' ? '## You\n\n' : '## neurodigineration\n\n';
+      const h = t.role === 'user' ? '## You\n\n' : '## neurodegeneration.ai\n\n';
       return h + t.content;
     }).join('\n\n---\n\n');
     const blob = new Blob([md], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'neurodigineration-conversation.md'; a.click();
+    a.href = url; a.download = 'neurodegeneration.ai-conversation.md'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 

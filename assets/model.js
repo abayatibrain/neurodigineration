@@ -1,4 +1,4 @@
-// bioscope-web training mode — BioscopeModel
+// neurodigineration training mode — BioscopeModel
 //
 // The "model" the SME trains is a JSON object held in localStorage.
 // It has no neural weights of its own; instead, it parametrises every
@@ -19,15 +19,15 @@
 // the GUI-2 end-user tool.
 //
 // Persistence: BioscopeModel reads/writes a single localStorage key
-// (default: "bioscope-train-v1"). import()/export() round-trip the same JSON
+// (default: "nd-train-v1"). import()/export() round-trip the same JSON
 // shape so an SME can move state between machines or share with a teammate.
 
-const STORAGE_KEY = 'bioscope-train-v1';
+const STORAGE_KEY = 'nd-train-v1';
 const MAX_FEW_SHOT = 5;
 const MAX_AVOID = 8;
 const LEARNING_LOOP_EVERY = 3; // fire after every N new ratings
 
-const DEFAULT_SYSTEM_PROMPT = `You are bioscope, a research-grade cell-biology brief generator.
+const DEFAULT_SYSTEM_PROMPT = `You are neurodigineration, a research-grade cell-biology brief generator.
 
 For each gene the user names, you produce a single markdown brief with these sections, in order:
 
@@ -705,6 +705,86 @@ const DEFAULT_GENE_PANEL = [
   { symbol: 'SLC1A2', aliases: ['EAAT2', 'GLT-1'], notes: 'Glial glutamate transporter 1 (EAAT2/GLT-1); clears synaptic glutamate; mHTT in astrocytes reduces SLC1A2, driving excitotoxic striatal degeneration in HD.',
     expectTokens: ['EAAT2', 'P43004', 'GLT-1', 'glutamate', 'huntington'] },
 
+  // ===== Round 4 — tangential expansion (synaptic vesicles, PSD, DA neurons,
+  //                 mitochondrial fission, AD GWAS hits, ALS, autophagy core).
+  //                 Connected to core nodes via dotted edges — SME to validate. =====
+
+  // Synaptic vesicle / SNARE
+  { symbol: 'SYT1',     aliases: ['SYNAPTOTAGMIN-1'], notes: 'Synaptotagmin-1 — calcium sensor for synaptic vesicle fusion; interacts with αSyn and the SNARE complex.',
+    expectTokens: ['synaptotagmin', 'P21579', 'synaptic vesicle', 'calcium'] },
+  { symbol: 'STX1A',    aliases: ['SYNTAXIN-1A'], notes: 'Syntaxin-1A — t-SNARE on presynaptic membrane; assembles with VAMP2 and SNAP25 for vesicle fusion.',
+    expectTokens: ['syntaxin', 'Q16623', 'SNARE', 'synaptic vesicle'] },
+  { symbol: 'SNAP25',   aliases: [], notes: 'Synaptosomal-associated protein 25 — t-SNARE; reduced in AD presynapses; Aβ disrupts assembly.',
+    expectTokens: ['SNAP25', 'P60880', 'SNARE', 'alzheimer', 'synaptic'] },
+  { symbol: 'VAMP2',    aliases: ['SYNAPTOBREVIN-2'], notes: 'Synaptobrevin-2 — v-SNARE on synaptic vesicles; αSyn binds and clusters VAMP2.',
+    expectTokens: ['VAMP2', 'P63027', 'synaptobrevin', 'SNARE', 'synaptic vesicle'] },
+  { symbol: 'SYP',      aliases: ['SYNAPTOPHYSIN'], notes: 'Synaptophysin — abundant SV protein; one of the earliest presynaptic markers lost in AD.',
+    expectTokens: ['synaptophysin', 'P08247', 'synaptic vesicle', 'alzheimer'] },
+  { symbol: 'SV2A',     aliases: [], notes: 'Synaptic vesicle glycoprotein 2A — universal SV marker; levetiracetam target; in vivo PET biomarker of synaptic density.',
+    expectTokens: ['SV2A', 'Q7L0J3', 'synaptic vesicle', 'PET'] },
+
+  // PSD scaffolds + glutamate receptors
+  { symbol: 'DLG4',     aliases: ['PSD-95', 'PSD95'], notes: 'PSD-95 — postsynaptic density scaffold; anchors NMDA/AMPA receptors; reduced by TDP-43 mislocalisation in ALS.',
+    expectTokens: ['PSD-95', 'P78352', 'postsynaptic', 'scaffold'] },
+  { symbol: 'GRIN1',    aliases: ['NMDAR1', 'NR1'], notes: 'NMDA receptor obligate subunit GluN1; Aβ-driven endocytosis reduces postsynaptic density.',
+    expectTokens: ['NMDA', 'Q05586', 'glutamate', 'postsynaptic'] },
+  { symbol: 'GRIA1',    aliases: ['GLUR1'], notes: 'AMPA receptor subunit GluA1; trafficking and endocytosis regulated by Aβ-PrPc-Fyn signalling.',
+    expectTokens: ['AMPA', 'P42261', 'glutamate', 'postsynaptic'] },
+  { symbol: 'HOMER1',   aliases: [], notes: 'Homer-1 — PSD scaffold linking mGluRs to IP3 receptors; activity-dependent expression.',
+    expectTokens: ['HOMER1', 'Q86YM7', 'postsynaptic', 'scaffold'] },
+
+  // Mitochondrial fission machinery (DRP1 receptors)
+  { symbol: 'FIS1',     aliases: ['TTC11'], notes: 'Fission protein 1 — outer mitochondrial membrane DRP1 receptor; recruited by Aβ in AD.',
+    expectTokens: ['FIS1', 'Q9Y3D6', 'mitochondri', 'fission'] },
+  { symbol: 'MFF',      aliases: [], notes: 'Mitochondrial fission factor — primary DRP1 receptor on the OMM; phosphoregulated by AMPK.',
+    expectTokens: ['MFF', 'Q9GZY8', 'mitochondri', 'fission'] },
+  { symbol: 'MIEF1',    aliases: ['MID49'], notes: 'Mitochondrial elongation factor 1 (MID49) — DRP1 receptor; co-recruits MFF for fission.',
+    expectTokens: ['MID49', 'Q9NQG6', 'mitochondri', 'fission'] },
+
+  // DA-neuron-specific (PD vulnerability axis)
+  { symbol: 'TH',       aliases: ['TYROSINE HYDROXYLASE'], notes: 'Rate-limiting enzyme of dopamine synthesis; loss in substantia nigra is the biochemical signature of PD.',
+    expectTokens: ['tyrosine hydroxylase', 'P07101', 'dopamine', 'parkinson'] },
+  { symbol: 'SLC6A3',   aliases: ['DAT', 'DAT1'], notes: 'Dopamine transporter — presynaptic dopamine reuptake; the DAT-SPECT imaging target in PD diagnosis.',
+    expectTokens: ['DAT', 'Q01959', 'dopamine', 'parkinson', 'transporter'] },
+  { symbol: 'SLC18A2',  aliases: ['VMAT2'], notes: 'Vesicular monoamine transporter 2 — loads monoamines into synaptic vesicles; reduced in PD.',
+    expectTokens: ['VMAT2', 'Q05940', 'dopamine', 'synaptic vesicle', 'parkinson'] },
+
+  // Additional AD LOAD GWAS hits
+  { symbol: 'PICALM',   aliases: ['CALM'], notes: 'Phosphatidylinositol-binding clathrin assembly protein — endocytosis; consistent LOAD GWAS hit.',
+    expectTokens: ['PICALM', 'Q13492', 'alzheimer', 'endocyt'] },
+  { symbol: 'CD2AP',    aliases: [], notes: 'CD2-associated protein — endocytic adaptor; LOAD GWAS hit; AD risk via APP processing.',
+    expectTokens: ['CD2AP', 'Q9Y5K6', 'alzheimer', 'endocyt'] },
+  { symbol: 'TOMM40',   aliases: [], notes: 'TOM40 — outer mitochondrial membrane channel; gene sits adjacent to APOE on chr19, with confounded AD-risk signal.',
+    expectTokens: ['TOMM40', 'O96008', 'mitochondri', 'alzheimer'] },
+
+  // ALS expansion
+  { symbol: 'UBQLN2',   aliases: ['UBIQUILIN-2'], notes: 'Ubiquilin-2 — X-linked ALS/FTD; shuttles ubiquitinated cargo to the proteasome and autophagy.',
+    expectTokens: ['ubiquilin', 'Q9UHD9', 'ALS', 'FTD', 'ubiquitin'] },
+  { symbol: 'KIF5A',    aliases: [], notes: 'Kinesin family member 5A — anterograde axonal transport motor; ALS25; also hereditary spastic paraplegia 10.',
+    expectTokens: ['KIF5A', 'Q12840', 'kinesin', 'axonal transport', 'ALS'] },
+  { symbol: 'ANG',      aliases: ['ANGIOGENIN'], notes: 'Angiogenin — RNase A family; ALS9; tRNA-derived fragments in neuronal stress response.',
+    expectTokens: ['angiogenin', 'P03950', 'ALS', 'RNase'] },
+  { symbol: 'CHCHD10',  aliases: [], notes: 'Mitochondrial coiled-coil-helix protein 10 — ALS22/FTD; paralog of CHCHD2; intermembrane-space.',
+    expectTokens: ['CHCHD10', 'Q8WYQ3', 'mitochondri', 'ALS', 'FTD'] },
+
+  // Autophagy core extensions
+  { symbol: 'RB1CC1',   aliases: ['FIP200'], notes: 'FIP200 — scaffold subunit of the ULK1 autophagy-initiation complex; loss abolishes neuronal autophagy.',
+    expectTokens: ['FIP200', 'Q8TDY2', 'autophagy', 'ULK1'] },
+  { symbol: 'ATG12',    aliases: [], notes: 'ATG12 — ubiquitin-like protein that conjugates with ATG5; the conjugate is the E3-like for LC3 lipidation.',
+    expectTokens: ['ATG12', 'O94817', 'autophagy', 'conjugation'] },
+  { symbol: 'ATG16L1',  aliases: [], notes: 'ATG16L1 — recruits ATG12-ATG5 to phagophore; Crohn-disease risk allele T300A; required for LC3 lipidation.',
+    expectTokens: ['ATG16L1', 'Q676U5', 'autophagy', 'phagophore'] },
+  { symbol: 'STX17',    aliases: ['SYNTAXIN-17'], notes: 'Syntaxin-17 — autophagosome SNARE; mediates fusion with LAMP1+ lysosomes via SNAP29 and VAMP8.',
+    expectTokens: ['STX17', 'P56962', 'autophagy', 'SNARE', 'fusion'] },
+
+  // Inflammation
+  { symbol: 'NLRP3',    aliases: ['NALP3'], notes: 'NLR family pyrin domain containing 3 — inflammasome sensor; activated by Aβ, αSyn fibrils; drives IL-1β in chronic neuroinflammation.',
+    expectTokens: ['NLRP3', 'Q96P20', 'inflammasome', 'microglia', 'neuroinflammation'] },
+
+  // Iron / NBIA-adjacent
+  { symbol: 'FTL',      aliases: ['FERRITIN-LIGHT'], notes: 'Ferritin light chain — iron storage; pathogenic mutations cause neuroferritinopathy (an NBIA subtype).',
+    expectTokens: ['ferritin', 'P02792', 'iron', 'NBIA'] },
+
   // ===== Group J — FTD modifiers & brain-iron accumulation =====
   {
     symbol: 'TMEM106B',
@@ -834,7 +914,17 @@ export class BioscopeModel extends Emitter {
   _load() {
     if (!this.storage) return defaultModelState();
     try {
-      const raw = this.storage.getItem(STORAGE_KEY);
+      // Backward-compat: pull from the old bioscope-train-v1 key if the
+      // new nd-train-v1 key is empty (one-time migration on first load).
+      let raw = this.storage.getItem(STORAGE_KEY);
+      if (!raw) {
+        const legacy = this.storage.getItem('bioscope-train-v1');
+        if (legacy) {
+          raw = legacy;
+          try { this.storage.setItem(STORAGE_KEY, legacy); } catch { /* noop */ }
+          console.log('Migrated training state from bioscope-train-v1 → ' + STORAGE_KEY);
+        }
+      }
       if (!raw) return defaultModelState();
       const parsed = JSON.parse(raw);
       // Light migration / shape check
@@ -990,7 +1080,7 @@ export class BioscopeModel extends Emitter {
   }
 
   /**
-   * Record an SME judgement on a network edge — the connection bioscope
+   * Record an SME judgement on a network edge — the connection neurodigineration
    * proposed between two genes/proteins. Drives the network-training
    * feedback loop: invalid edges become avoid patterns, well-explained
    * valid edges become few-shot examples.
@@ -1000,7 +1090,7 @@ export class BioscopeModel extends Emitter {
    * @param {string} arg.from
    * @param {string} arg.to
    * @param {string} arg.kind            edge category (kinase-substrate, etc.)
-   * @param {string} arg.proposedNote    bioscope's explanation as shown
+   * @param {string} arg.proposedNote    neurodigineration's explanation as shown
    * @param {string[]} arg.proposedPmids citations as shown
    * @param {'yes'|'no'|'uncertain'} arg.validity is the connection real?
    * @param {number} arg.explanationQuality 1..5 (how good is the explanation)
@@ -1197,7 +1287,7 @@ export class BioscopeModel extends Emitter {
     const parsed = typeof json === 'string' ? JSON.parse(json) : json;
     // Light validation — must look like a model state
     if (!parsed || typeof parsed !== 'object' || !parsed.version || !Array.isArray(parsed.versionHistory)) {
-      throw new Error('Imported JSON does not look like a bioscope model state');
+      throw new Error('Imported JSON does not look like a neurodigineration model state');
     }
     this.state = { ...defaultModelState(), ...parsed };
     this._save();

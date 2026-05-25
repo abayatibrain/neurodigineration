@@ -1,4 +1,4 @@
-// Direct-from-browser Anthropic adapter for bioscope-web training mode.
+// Direct-from-browser Anthropic adapter for neurodigineration training mode.
 //
 // Anthropic's API blocks browser calls by default to protect API keys
 // from being leaked through public web apps. The opt-in escape hatch is
@@ -8,7 +8,7 @@
 //
 // The key the SME pastes is stored in localStorage on their own browser
 // and is sent ONLY to api.anthropic.com. It is never relayed to any
-// other origin (including the host of bioscope-web itself, since the
+// other origin (including the host of neurodigineration itself, since the
 // page has no backend). The key field in the UI advertises this so the
 // user knows the trust boundary.
 //
@@ -23,7 +23,16 @@ const ANTHROPIC_VERSION = '2023-06-01';
 /** Pulls API key out of localStorage. Returns null if absent. */
 export function loadApiKey() {
   try {
-    return localStorage.getItem('bioscope-anthropic-key') || null;
+    let k = localStorage.getItem('nd-anthropic-key');
+    if (!k) {
+      // Backward-compat: pull from old bioscope-anthropic-key on first load
+      const legacy = localStorage.getItem('bioscope-anthropic-key');
+      if (legacy) {
+        k = legacy;
+        try { localStorage.setItem('nd-anthropic-key', legacy); } catch { /* noop */ }
+      }
+    }
+    return k || null;
   } catch {
     return null;
   }
@@ -32,8 +41,8 @@ export function loadApiKey() {
 /** Persists API key to localStorage. Pass null to forget. */
 export function saveApiKey(key) {
   try {
-    if (!key) localStorage.removeItem('bioscope-anthropic-key');
-    else localStorage.setItem('bioscope-anthropic-key', key.trim());
+    if (!key) localStorage.removeItem('nd-anthropic-key');
+    else localStorage.setItem('nd-anthropic-key', key.trim());
   } catch (e) {
     console.error('Could not persist API key:', e);
   }

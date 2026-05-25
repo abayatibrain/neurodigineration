@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>bioscope · network — interactive neurodegen gene network</title>
-  <meta name="description" content="Interactive cross-disease network of neurodegeneration-relevant genes. Click any edge to read the molecular interaction with PubMed citations — and rate it so bioscope's model learns from your judgement." />
-  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%2356b1ff'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='%230b0f14'>b</text></svg>" />
+  <title>neurodigineration · network — interactive neurodegen gene network</title>
+  <meta name="description" content="Interactive cross-disease network of neurodegeneration-relevant genes. Click any edge to read the molecular interaction with PubMed citations — and rate it so neurodigineration's model learns from your judgement." />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%2356b1ff'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='%230b0f14'>n</text></svg>" />
   <!-- arminbayati.com brand fonts — only used by the light theme but preloaded so the swap is instant -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,7 +15,12 @@
   <script>
     (function () {
       try {
-        var t = localStorage.getItem('bioscope-network-theme');
+        var t = localStorage.getItem('nd-network-theme');
+        if (!t) {
+          // Backward-compat
+          var legacy = localStorage.getItem('bioscope-network-theme');
+          if (legacy) { t = legacy; try { localStorage.setItem('nd-network-theme', legacy); } catch (e) {} }
+        }
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
       } catch (e) { /* localStorage blocked — stay on default (dark) */ }
     })();
@@ -26,8 +31,8 @@
 <header class="site">
   <div class="row">
     <a class="brand" href="./" style="color: inherit;">
-      <span class="logo">b</span>
-      <span class="name">bioscope<em>· network</em></span>
+      <span class="logo">n</span>
+      <span class="name">neurodigineration<em>· network</em></span>
     </a>
     <span class="pill" id="model-status-pill">Loading…</span>
     <span class="spacer"></span>
@@ -42,8 +47,12 @@
       <a href="./train.html">Train</a>
     </nav>
   </div>
-  <div class="row" style="padding-top: 0; padding-bottom: 8px;">
+  <div class="row" style="padding-top: 0; padding-bottom: 8px; align-items: center;">
     <div class="edge-legend" id="edge-legend"></div>
+    <span style="font-size: 11px; color: var(--mute); margin-left: 12px;">
+      &middot; <span style="display:inline-block;width:24px;height:0;border-top:1.5px dotted currentColor;vertical-align:middle;margin-right:4px;"></span>
+      <em>dotted</em> = tangential, awaiting SME validation
+    </span>
   </div>
 </header>
 

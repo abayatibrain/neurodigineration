@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>bioscope · train — human-in-the-loop SME training GUI</title>
-  <meta name="description" content="Train the bioscope brief generator: rate model outputs on four dimensions, A/B compare variants, edit the gene panel, edit the system prompt. The model learns from your selections." />
-  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%230b3b5a'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='white'>b</text></svg>" />
+  <title>neurodigineration · train — human-in-the-loop SME training GUI</title>
+  <meta name="description" content="Train the neurodigineration brief generator: rate model outputs on four dimensions, A/B compare variants, edit the gene panel, edit the system prompt. The model learns from your selections." />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%230b3b5a'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='white'>n</text></svg>" />
   <link rel="stylesheet" href="./assets/train.css" />
 </head>
 <body>
@@ -13,8 +13,8 @@
 <header class="site">
   <div class="row">
     <a class="brand" href="./">
-      <span class="logo">b</span>
-      <span class="name">bioscope<em>· train</em></span>
+      <span class="logo">n</span>
+      <span class="name">neurodigineration<em>· train</em></span>
     </a>
 
     <div class="header-controls">
@@ -62,7 +62,7 @@
       <p class="sub">Instructions handed to Claude (and to the mock template). Edit and click outside the box to save — bumps the model version.</p>
       <textarea id="system-prompt" class="system-prompt" spellcheck="false"></textarea>
       <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end;">
-        <button id="reset-prompt" class="btn ghost" title="Reset to the default bundled with bioscope">Reset to default</button>
+        <button id="reset-prompt" class="btn ghost" title="Reset to the default bundled with neurodigineration">Reset to default</button>
       </div>
     </section>
 
@@ -186,14 +186,17 @@
 
     <section class="card">
       <h2>Gene panel <span class="count" id="panel-count"></span></h2>
-      <p class="sub">Genes available in the picker. Mock mode requires symbols with bundled briefs (SNCA, LRRK2, TP53, APP, MAPT, GBA).</p>
-      <table class="panel-table">
-        <thead>
-          <tr><th>Symbol</th><th>Notes / tokens</th><th style="text-align: right">Actions</th></tr>
-        </thead>
-        <tbody id="panel-tbody"></tbody>
-      </table>
-      <div style="margin-top: 10px; text-align: right;">
+      <p class="sub">Genes available in the picker. Mock mode requires symbols with bundled briefs (SNCA, LRRK2, TP53, APP, MAPT, GBA). The full list is scrollable — the picker uses all of them.</p>
+      <div class="panel-scroll" style="max-height: 52vh; overflow-y: auto; border: 1px solid var(--rule); border-radius: 8px;">
+        <table class="panel-table" style="margin: 0;">
+          <thead style="position: sticky; top: 0; background: var(--bg); z-index: 1; box-shadow: 0 1px 0 var(--rule);">
+            <tr><th>Symbol</th><th>Notes / tokens</th><th style="text-align: right">Actions</th></tr>
+          </thead>
+          <tbody id="panel-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11.5px; color: var(--mute);">scroll to see all <span id="panel-total-count">…</span> genes</span>
         <button class="btn" id="add-gene">+ Add gene</button>
       </div>
     </section>

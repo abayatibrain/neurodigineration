@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>bioscope — AI cell-biology research briefs</title>
+  <title>neurodigineration — AI cell-biology research briefs</title>
   <meta name="description" content="Type a human gene symbol. Get a research-grade brief composed live from UniProt, NCBI, Ensembl, and Reactome." />
   <meta name="theme-color" content="#0b3b5a" />
-  <meta property="og:title" content="bioscope — AI cell-biology research briefs" />
+  <meta property="og:title" content="neurodigineration — AI cell-biology research briefs" />
   <meta property="og:description" content="Type a human gene symbol. Get a research-grade brief composed live from UniProt, NCBI, Ensembl, and Reactome." />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%230b3b5a'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='white'>b</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%230b3b5a'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='white'>n</text></svg>" />
   <style>
     :root {
       --ink: #14202b;
@@ -328,15 +328,15 @@
 <header class="site">
   <div class="container">
     <a class="brand" href="./">
-      <span class="logo">b</span>
-      <span class="name">bioscope<em>cell-biology research briefs</em></span>
+      <span class="logo">n</span>
+      <span class="name">neurodigineration<em>cell-biology research briefs</em></span>
     </a>
     <nav class="site-nav">
       <a href="./network.html"><strong>Network</strong></a>
       <a href="./ask.html"><strong>Ask</strong></a>
       <a href="./train.html"><strong>Train</strong></a>
       <a href="#about">How it works</a>
-      <a href="https://github.com/abayatibrain/bioscope-web" id="repo-link">GitHub</a>
+      <a href="https://github.com/abayatibrain/neurodigineration" id="repo-link">GitHub</a>
     </nav>
   </div>
 </header>
@@ -347,7 +347,7 @@
     <span class="ai-pill">Built with Claude Code</span>
     <h1 style="margin-top:12px">A research-grade gene brief, composed live from four public bio APIs.</h1>
     <p class="lede">
-      Type a human gene symbol. <strong>bioscope</strong> queries UniProt, NCBI E-utilities,
+      Type a human gene symbol. <strong>neurodigineration</strong> queries UniProt, NCBI E-utilities,
       Ensembl REST, and Reactome in parallel and renders a structured brief —
       protein function, gene metadata, pathway membership, and the most recent literature —
       in the time it takes you to read this sentence.
@@ -392,8 +392,8 @@
   <section class="about" id="about">
     <h2>How this works</h2>
     <p>
-      <strong>bioscope-web</strong> is the browser-native sibling of
-      <a href="https://github.com/abayatibrain/bioscope" id="cli-link">bioscope</a>,
+      <strong>neurodigineration-web</strong> is the browser-native sibling of
+      <a href="https://github.com/abayatibrain/neurodigineration" id="cli-link">neurodigineration</a>,
       a TypeScript CLI that wraps the same four public bioinformatics APIs in a
       Model Context Protocol (MCP) server for Claude Code. The web app does no
       caching, no server-side aggregation, and no LLM inference at request time —
@@ -420,7 +420,7 @@
     </div>
     <p style="margin-top:18px">
       Built with Claude Code on top of the
-      <a href="https://github.com/abayatibrain/bioscope" id="cli-link-2">bioscope</a>
+      <a href="https://github.com/abayatibrain/neurodigineration" id="cli-link-2">neurodigineration</a>
       design. The full agent version exposes seven tools across these same APIs via MCP,
       with custom slash commands, scoped sub-agents, pre/post tool-use hooks, and a
       Claude Agent SDK headless build for batch runs.
@@ -431,7 +431,7 @@
     <div class="who">
       Made by <a href="https://arminbayati.com" target="_blank" rel="noopener">Armin Bayati</a>
       &middot;
-      <a href="https://github.com/abayatibrain/bioscope-web" id="repo-link-2">source</a>
+      <a href="https://github.com/abayatibrain/neurodigineration" id="repo-link-2">source</a>
     </div>
     <div class="built">No backend. No tracking. Static HTML + four CORS-enabled public APIs.</div>
   </footer>
@@ -442,7 +442,7 @@
 "use strict";
 
 /* ============================================================
- * bioscope-web — single-page client over UniProt / NCBI / Ensembl / Reactome
+ * neurodigineration — single-page client over UniProt / NCBI / Ensembl / Reactome
  * No build step, no backend, no dependencies. ES2017+.
  * ============================================================ */
 
@@ -739,7 +739,7 @@ function notFoundView(sym) {
   briefEl.innerHTML = `
     <div class="notice warn">
       <strong>No reviewed human entry found for <code>${esc(sym)}</code>.</strong>
-      bioscope looks up <em>Homo sapiens</em> symbols in Swiss-Prot (reviewed UniProt) and Entrez Gene.
+      neurodigineration looks up <em>Homo sapiens</em> symbols in Swiss-Prot (reviewed UniProt) and Entrez Gene.
       Double-check the symbol — for example, ${esc(sym)} might be an alias.
       Try <a href="${LINK.hgncSearch(sym)}" target="_blank" rel="noopener">searching HGNC</a> for the
       canonical symbol, or try one of the example chips above.
@@ -932,7 +932,7 @@ async function run(sym) {
   url.searchParams.set("gene", sym);
   history.replaceState(null, "", url.toString());
 
-  document.title = `${sym} — bioscope`;
+  document.title = `${sym} — neurodigineration`;
   goBtn.disabled = true;
   goBtn.textContent = "Composing…";
   renderSkeleton(sym);

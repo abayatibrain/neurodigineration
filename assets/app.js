@@ -1,4 +1,4 @@
-// bioscope-web training mode — main app wiring.
+// neurodigineration training mode — main app wiring.
 //
 // Boot order:
 //   1. instantiate BioscopeModel from localStorage
@@ -311,6 +311,8 @@ function resetRating() {
 function renderPanelTable() {
   const tbody = $('#panel-tbody');
   tbody.innerHTML = '';
+  const totalSpan = $('#panel-total-count');
+  if (totalSpan) totalSpan.textContent = String(model.panel.length);
   for (const g of model.panel) {
     const isMock = mockGenes().includes(g.symbol);
     tbody.appendChild(
@@ -507,10 +509,10 @@ async function generateBrief() {
     // Build messages from few-shot examples
     const messages = [];
     for (const ex of model.fewShotExamples.slice(-3)) {
-      messages.push({ role: 'user', content: `Produce a bioscope brief for the gene ${ex.gene}.` });
+      messages.push({ role: 'user', content: `Produce a neurodigineration brief for the gene ${ex.gene}.` });
       messages.push({ role: 'assistant', content: ex.brief });
     }
-    messages.push({ role: 'user', content: `Produce a bioscope brief for the gene ${gene}. Follow every rule in the system prompt.` });
+    messages.push({ role: 'user', content: `Produce a neurodigineration brief for the gene ${gene}. Follow every rule in the system prompt.` });
 
     // Build system prompt with avoid patterns appended
     let sys = model.systemPrompt;
@@ -570,15 +572,15 @@ async function generateABPair() {
       apiKey,
       model: model.settings.anthropicModel,
       system: DEFAULT_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: `Produce a bioscope brief for the gene ${gene}.` }],
+      messages: [{ role: 'user', content: `Produce a neurodigineration brief for the gene ${gene}.` }],
       maxTokens: model.settings.anthropicMaxTokens,
     });
     const trainedMessages = [];
     for (const ex of model.fewShotExamples.slice(-3)) {
-      trainedMessages.push({ role: 'user', content: `Produce a bioscope brief for the gene ${ex.gene}.` });
+      trainedMessages.push({ role: 'user', content: `Produce a neurodigineration brief for the gene ${ex.gene}.` });
       trainedMessages.push({ role: 'assistant', content: ex.brief });
     }
-    trainedMessages.push({ role: 'user', content: `Produce a bioscope brief for the gene ${gene}.` });
+    trainedMessages.push({ role: 'user', content: `Produce a neurodigineration brief for the gene ${gene}.` });
     let sys = model.systemPrompt;
     if (model.avoidPatterns.length > 0) {
       sys += '\n\n## Avoid:\n' + model.avoidPatterns.map((a) => `- ${a.pattern}`).join('\n');
@@ -714,7 +716,7 @@ function removeGeneConfirm(symbol) {
 // Exports
 // =============================================================================
 function exportFullState() {
-  download('bioscope-model.json', model.export(), 'application/json');
+  download('neurodigineration-model.json', model.export(), 'application/json');
 }
 
 function exportDpoJsonl() {
@@ -725,14 +727,14 @@ function exportDpoJsonl() {
       const chosen = p.winner === 'A' ? p.briefA.full : p.briefB.full;
       const rejected = p.winner === 'A' ? p.briefB.full : p.briefA.full;
       return JSON.stringify({
-        prompt: `Produce a bioscope brief for the gene ${p.gene}.`,
+        prompt: `Produce a neurodigineration brief for the gene ${p.gene}.`,
         chosen,
         rejected,
         metadata: { gene: p.gene, model_version: model.version, reason: p.reason },
       });
     });
   if (lines.length === 0) { toast('All preferences were ties.', 'warn'); return; }
-  download('bioscope-preferences.jsonl', lines.join('\n'), 'application/jsonl');
+  download('neurodigineration-preferences.jsonl', lines.join('\n'), 'application/jsonl');
 }
 
 function exportSftJsonl() {
@@ -741,13 +743,13 @@ function exportSftJsonl() {
     JSON.stringify({
       messages: [
         { role: 'system', content: model.systemPrompt },
-        { role: 'user', content: `Produce a bioscope brief for the gene ${g.gene}.` },
+        { role: 'user', content: `Produce a neurodigineration brief for the gene ${g.gene}.` },
         { role: 'assistant', content: g.brief },
       ],
       metadata: { gene: g.gene, model_version: model.version, notes: g.notes },
     }),
   );
-  download('bioscope-gold-standards.jsonl', lines.join('\n'), 'application/jsonl');
+  download('neurodigineration-gold-standards.jsonl', lines.join('\n'), 'application/jsonl');
 }
 
 function exportRatingsCsv() {
@@ -758,7 +760,7 @@ function exportRatingsCsv() {
      r.ratings.factuality, r.ratings.completeness, r.ratings.citation, r.ratings.clarity,
      r.overall, JSON.stringify(r.comment || ''), r.ratedAt].join(','),
   );
-  download('bioscope-ratings.csv', head + rows.join('\n'), 'text/csv');
+  download('neurodigineration-ratings.csv', head + rows.join('\n'), 'text/csv');
 }
 
 function importStateFromFile() {
@@ -792,7 +794,7 @@ function download(filename, data, type) {
 // Connection-training mode
 // =============================================================================
 
-const CONNECTION_GENERATOR_PROMPT = `You are bioscope, proposing a biological connection between two genes/proteins for SME (subject-matter expert) validation.
+const CONNECTION_GENERATOR_PROMPT = `You are neurodigineration, proposing a biological connection between two genes/proteins for SME (subject-matter expert) validation.
 
 You will receive two HGNC gene symbols (A and B). Your task is to propose the strongest documented connection between them, if one exists.
 
