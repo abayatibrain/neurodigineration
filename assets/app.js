@@ -967,40 +967,47 @@ async function generateConnection() {
 
   try {
     // Mock-mode behaviour — ALWAYS respects the picked pair (no silent
-    // substitution to a random other edge, which was the old confusing UX):
-    //   - established → show curated edge for (A,B) if it exists,
-    //                    otherwise show a "no curated edge for this pair"
-    //                    stub with a clear next-step suggestion.
-    //   - freepair    → same shape, framed as a free-pair stub since the
-    //                    SME explicitly wants to draft a new edge.
+    // substitution to a random other edge):
+    //   - established → curated edge for (A,B) if it exists, else a clear
+    //                    "no curated edge — switch tab" message.
+    //   - freepair    → editable proposal card: SME fills in kind + note
+    //                    by hand (no API key needed) and clicks
+    //                    Accept into graph to add it as a new edge.
     if (state.mode === 'mock') {
       const exact = findExistingMockEdge(a, b);
+      if (sub === 'freepair') {
+        // Editable card — SME authors the edge themselves. Pre-fill with
+        // the curated edge if one exists; otherwise blank shared-mechanism
+        // placeholder for them to overwrite.
+        state.connProposal = exact ? {
+          from: exact.from, to: exact.to, kind: exact.kind,
+          note: exact.note, pmids: exact.pmids ?? [],
+          source: 'mock-editable-existing',
+          editable: true,
+        } : {
+          from: a, to: b, kind: 'shared-mechanism',
+          note: '',
+          pmids: [],
+          source: 'mock-editable-new',
+          editable: true,
+        };
+        resetConnRating();
+        renderConnProposal();
+        return;
+      }
       if (exact) {
+        // Established sub-mode with a curated edge — show as-is for rating
         state.connProposal = {
           from: exact.from, to: exact.to, kind: exact.kind,
           note: exact.note, pmids: exact.pmids ?? [],
           source: 'mock-exact',
         };
-      } else if (sub === 'freepair') {
-        // Free-pair: SME wants to draft a new edge. Mock can't propose
-        // biology (no API key), so show a stub framing the next step.
-        state.connProposal = {
-          from: a, to: b, kind: 'shared-mechanism',
-          note: `Mock-mode stub: no curated edge exists between ${a} and ${b}. ` +
-            `In live mode, Claude would draft a new mechanistic connection here. ` +
-            `Switch to live mode in the header (and add your API key) to generate a real proposal — or rate this stub as Not Real if you don't expect any connection.`,
-          pmids: [],
-          source: 'mock-freepair-stub',
-        };
       } else {
-        // Established sub-mode with no curated edge for the picked pair.
-        // Don't silently swap to a random pair — show a clear message.
+        // Established sub-mode with no curated edge — point SME to Free Pair
         state.connProposal = {
           from: a, to: b, kind: 'shared-mechanism',
-          note: `No curated edge exists between ${a} and ${b} in mock mode. ` +
-            `Either (1) switch to the "Free pair (new)" sub-tab to draft a brand-new connection (works in live mode with an API key), ` +
-            `(2) use the 🎲 Random pair button to load a pair that does have a curated edge, ` +
-            `or (3) pick another pair you suspect might be connected.`,
+          note: `No curated edge exists between ${a} and ${b} in the network. ` +
+            `Switch to the "Free pair (new)" sub-tab above to draft and accept this connection yourself — mock mode works fine there, no API key needed.`,
           pmids: [],
           source: 'mock-no-curated-edge',
         };
@@ -1184,14 +1191,22 @@ function renderConnSubMode() {
   } else {
     hint.innerHTML = 'In <strong>live mode</strong>, Claude proposes the strongest documented connection between A and B with PMID citations. In <strong>mock mode</strong>, a random pre-curated edge from the network is shown.';
   }
-  // Hide rating block when switching modes (until next Generate)
-  $('#conn-rating-block').style.display = 'none';
-  state.connProposal = null;
-  state.connAcceptedId = null;
-  $('#conn-card').className = 'brief-frame empty';
-  $('#conn-card').innerHTML = isSuggest
-    ? 'Click <strong>Suggest pairs</strong> to have Claude propose candidate edges.'
-    : 'Pick two genes and click <strong>Generate connection</strong>.';
+  // IMPORTANT: do NOT wipe state.connProposal or rewrite #conn-card here.
+  // Switching sub-modes is a soft visibility toggle — the user's current
+  // proposal stays visible, the rating block stays visible if a proposal
+  // exists, and the Accept-into-graph button's eligibility re-evaluates
+  // against the new sub-mode. This avoids losing work on a chip click.
+  if (state.connProposal) {
+    // Re-render in case Accept/save button eligibility changed with the sub-mode
+    updateConnSaveEnabled();
+  } else {
+    // No proposal yet → show the appropriate placeholder for the mode
+    $('#conn-rating-block').style.display = 'none';
+    $('#conn-card').className = 'brief-frame empty';
+    $('#conn-card').innerHTML = isSuggest
+      ? 'Click <strong>Suggest pairs</strong> to have Claude propose candidate edges.'
+      : 'Pick two genes and click <strong>Generate connection</strong>.';
+  }
 }
 
 /**
@@ -1235,6 +1250,62 @@ function renderConnProposal() {
   const p = state.connProposal;
   const color = EDGE_COLORS[p.kind] || 'var(--mute)';
   card.className = 'brief-frame';
+
+  // Editable card — Free Pair in mock mode lets the SME author the edge
+  // themselves (no API key needed). All EDGE_COLORS kinds are available.
+  if (p.editable) {
+    const kindOptions = Object.keys(EDGE_COLORS).map((k) =>
+      `<option value="${k}"${k === p.kind ? ' selected' : ''}>${k}</option>`
+    ).join('');
+    card.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
+        <span style="font-family: 'SF Mono', monospace; font-weight: 700; color: var(--accent); font-size: 18px;">${escape(p.from)}</span>
+        <span style="color: var(--mute); font-size: 18px;">↔</span>
+        <span style="font-family: 'SF Mono', monospace; font-weight: 700; color: var(--accent); font-size: 18px;">${escape(p.to)}</span>
+        <span style="margin-left: auto; padding: 4px 10px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; background: var(--accent-soft, #fef3c7); color: var(--accent, #92400e); border-radius: 999px;">EDITABLE</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom: 10px; flex-wrap:wrap;">
+        <label style="font-size: 12px; color: var(--mute);">Kind:</label>
+        <select id="conn-edit-kind" style="padding: 6px 10px; border:1px solid var(--rule); border-radius: 6px; font-family: 'SF Mono', monospace; font-size: 13px;">${kindOptions}</select>
+        <span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:${color};" id="conn-edit-kind-swatch"></span>
+        <span style="font-size: 12px; color: var(--mute); margin-left: auto;">Mock-mode manual entry — no API key needed</span>
+      </div>
+      <label style="display:block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mute); margin-bottom: 4px;">Mechanism / explanation</label>
+      <textarea id="conn-edit-note" rows="5" placeholder="Describe how ${escape(p.from)} and ${escape(p.to)} are connected — 2–4 sentences. e.g. 'VPS35-retromer sorts LAMP2A back from late endosomes for chaperone-mediated autophagy; VPS35 D620N reduces LAMP2A levels and impairs CMA-mediated αSyn clearance.'"
+                style="width:100%; box-sizing:border-box; padding: 8px 10px; border:1px solid var(--rule); border-radius: 6px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical; min-height: 90px;">${escape(p.note || '')}</textarea>
+      <div style="display:flex; gap:10px; align-items:center; margin-top: 10px; flex-wrap: wrap;">
+        <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mute);">PMIDs (optional)</label>
+        <input id="conn-edit-pmids" type="text" placeholder="e.g. 21532579, 17220890"
+               value="${escape((p.pmids || []).join(', '))}"
+               style="flex:1; min-width: 200px; padding: 6px 10px; border:1px solid var(--rule); border-radius: 6px; font-family: 'SF Mono', monospace; font-size: 12px;" />
+        <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--mute);">Strength</label>
+        <input id="conn-edit-strength" type="number" min="0" max="1" step="0.05" value="${typeof p.strength === 'number' ? p.strength : 0.6}"
+               style="width: 70px; padding: 6px 10px; border:1px solid var(--rule); border-radius: 6px; font-family: 'SF Mono', monospace; font-size: 12px;" />
+      </div>
+      <div style="margin-top: 10px; font-size: 11px; color: var(--mute);">Mark <em>Real</em> below + click <strong>Accept into graph</strong> to add this as a dashed-green edge on the network page.</div>
+    `;
+    // Wire live updates so state.connProposal mirrors the form fields
+    $('#conn-edit-kind').addEventListener('change', (e) => {
+      state.connProposal.kind = e.target.value;
+      $('#conn-edit-kind-swatch').style.background = EDGE_COLORS[e.target.value] || 'var(--mute)';
+    });
+    $('#conn-edit-note').addEventListener('input', (e) => {
+      state.connProposal.note = e.target.value;
+      updateConnSaveEnabled(); // re-evaluate Accept-into-graph eligibility live
+    });
+    $('#conn-edit-pmids').addEventListener('input', (e) => {
+      state.connProposal.pmids = e.target.value.split(/[,\s]+/).filter(Boolean);
+    });
+    $('#conn-edit-strength').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      state.connProposal.strength = isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.6;
+    });
+    rate.style.display = '';
+    renderConnRatingControls();
+    return;
+  }
+
+  // Read-only card (mock-exact, live, etc.)
   card.innerHTML = `
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 10px;">
       <span style="font-family: 'SF Mono', monospace; font-weight: 700; color: var(--accent); font-size: 18px;">${escape(p.from)}</span>
@@ -1313,15 +1384,26 @@ function renderConnRatingControls() {
 function updateConnSaveEnabled() {
   const r = state.connRating;
   $('#conn-save-btn').disabled = !(r.validity && r.explanation > 0 && r.citation > 0);
-  // Accept-into-graph: only meaningful for freepair/aisuggest sub-modes,
-  // only when SME marked Real, only when proposal has a real kind, and
-  // only once per proposal.
+  // Accept-into-graph: meaningful for freepair/aisuggest sub-modes.
+  //   - In LIVE mode (Claude drafted the proposal) we additionally require
+  //     SME to have marked it Real so we don't accept fabrications.
+  //   - In MOCK mode the SME *is* the author (editable card) so we only
+  //     require a non-empty note + a real kind. Rating is optional but
+  //     still gated by validity ≠ "no" so SME can't accidentally accept
+  //     something they just marked as Not Real.
   const acceptBtn = $('#conn-accept-btn');
   const p = state.connProposal;
-  const eligible =
-    p && p.kind !== 'none' &&
-    (state.connSubMode === 'freepair' || state.connSubMode === 'aisuggest') &&
-    r.validity === 'yes';
+  const inAuthoringMode = state.connSubMode === 'freepair' || state.connSubMode === 'aisuggest';
+  let eligible = false;
+  if (p && p.kind !== 'none' && inAuthoringMode) {
+    if (p.editable) {
+      // Mock editable: SME authored the text → require a note + not-marked-Not-Real
+      eligible = (p.note || '').trim().length > 0 && r.validity !== 'no';
+    } else {
+      // Live proposal: require SME confirmation
+      eligible = r.validity === 'yes';
+    }
+  }
   acceptBtn.style.display = eligible ? '' : 'none';
   acceptBtn.disabled = !eligible || !!state.connAcceptedId;
   acceptBtn.textContent = state.connAcceptedId ? '✓ Accepted' : '+ Accept into graph';

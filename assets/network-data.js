@@ -987,6 +987,67 @@ export const EDGES = [
   { from: 'STIP1',  to: 'PRNP',   kind: 'receptor-ligand', strength: 0.65, pmids: [], note: 'Secreted STI1/HOP binds cellular PrPc as a neuroprotective ligand; STI1-PrP signalling drives neurite outgrowth and protein quality control.' },
   { from: 'STIP1',  to: 'SQSTM1', kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'STIP1 acts as an HSP70-HSP90 co-chaperone; protein-quality-control crosstalk with autophagic substrate adaptors.', tentative: true },
 
+  // ============================================================
+  // Round 6 — fill obvious gaps between core PD genes (and a few core
+  // cross-disease bridges). Previous rounds focused on adding new genes
+  // but didn't connect every well-established PD–PD pair. This round
+  // adds the high-value direct edges that any PD-savvy SME expects to see.
+  // ============================================================
+
+  // --- SNCA × other PD genes ---
+  { from: 'SNCA', to: 'LRRK2', kind: 'shared-mechanism', strength: 0.85, pmids: [],
+    note: 'LRRK2 kinase activity (esp. G2019S) accelerates α-synuclein aggregation and propagation; LRRK2 inhibition lowers αSyn pathology in PD models. αSyn-LRRK2 crosstalk also runs through endolysosomal Rab phosphorylation.' },
+  { from: 'SNCA', to: 'VPS35', kind: 'shared-mechanism', strength: 0.85, pmids: [],
+    note: 'VPS35 D620N retromer dysfunction impairs endolysosomal sorting of αSyn-degrading machinery (CTSD, LAMP2A) and accelerates αSyn accumulation. Retromer loss is sufficient to recapitulate αSyn pathology in vivo.' },
+  { from: 'SNCA', to: 'PRKN', kind: 'kinase-substrate', strength: 0.75, pmids: [],
+    note: 'Parkin ubiquitinates misfolded α-synuclein at multiple lysines, targeting it for proteasomal clearance; loss of PRKN function permits αSyn accumulation, contributing to Lewy-body formation in PD.' },
+  { from: 'SNCA', to: 'PINK1', kind: 'shared-mechanism', strength: 0.7, pmids: [],
+    note: 'PINK1 loss compromises mitophagy of αSyn-damaged mitochondria; reciprocally, αSyn oligomers depolarise mitochondria and stabilise PINK1 on the OMM. Bidirectional toxicity loop in PD neurons.' },
+  { from: 'SNCA', to: 'ATP13A2', kind: 'shared-mechanism', strength: 0.75, pmids: [],
+    note: 'ATP13A2 (PARK9) polyamine/cation lysosomal ATPase regulates αSyn clearance via the lysosomal pathway; ATP13A2 loss phenocopies GBA loss in driving αSyn accumulation.' },
+  { from: 'SNCA', to: 'PARK7', kind: 'shared-mechanism', strength: 0.7, pmids: [],
+    note: 'DJ-1 chaperones αSyn under oxidative stress, suppressing aggregation; DJ-1 loss-of-function (PARK7) raises cytosolic αSyn aggregation. Both converge on dopaminergic-neuron oxidative vulnerability.' },
+
+  // --- LRRK2 × other PD genes ---
+  { from: 'LRRK2', to: 'VPS35', kind: 'complex', strength: 0.8, pmids: [],
+    note: 'LRRK2 and VPS35 both regulate retromer-dependent endosomal sorting; LRRK2 phosphorylates Rabs on retromer-positive endosomes, and VPS35 D620N hyperactivates LRRK2-dependent Rab phosphorylation. Convergent PD pathway.' },
+  { from: 'LRRK2', to: 'GBA', kind: 'shared-mechanism', strength: 0.8, pmids: [],
+    note: 'LRRK2 inhibition restores GBA activity in patient-derived neurons; carriers of both LRRK2-G2019S and GBA-N370S have steeper PD risk than additive. LRRK2-GBA combined risk is a leading "lysosomal PD" axis.' },
+  { from: 'LRRK2', to: 'PRKN', kind: 'shared-mechanism', strength: 0.55, pmids: [],
+    note: 'LRRK2 G2019S impairs PRKN-mediated mitophagy efficiency in dopaminergic neurons; both pathways converge on selective autophagy of damaged mitochondria.' },
+  { from: 'LRRK2', to: 'PINK1', kind: 'shared-mechanism', strength: 0.5, pmids: [],
+    note: 'LRRK2 hyperactivity phosphorylates RABs (RAB10) that gate mitophagy receptor recruitment downstream of PINK1; loss of either gene impairs mitochondrial QC in PD neurons.', tentative: true },
+
+  // --- Retromer / lysosomal-trafficking core (VPS35-centric) ---
+  { from: 'VPS35', to: 'PRKN', kind: 'shared-mechanism', strength: 0.6, pmids: [],
+    note: 'Retromer maintains the recycling pool of MFN2 and TOMM substrates that PRKN-mitophagy depends on; VPS35 D620N reduces PRKN recruitment to damaged mitochondria.' },
+  { from: 'VPS35', to: 'ATP13A2', kind: 'shared-mechanism', strength: 0.6, pmids: [],
+    note: 'Both proteins lie on the endolysosomal sorting axis — retromer (VPS35) at the recycling tubule and ATP13A2 at the lysosomal membrane. Loss of either impairs lysosomal proteostasis in PD.' },
+  { from: 'VPS35', to: 'LAMP2', kind: 'shared-mechanism', strength: 0.55, pmids: [],
+    note: 'VPS35-retromer sorts LAMP2A back from late endosomes for chaperone-mediated autophagy; VPS35 D620N reduces LAMP2A levels and impairs CMA-mediated αSyn clearance.' },
+
+  // --- Recessive PD oxidative-mitochondrial trio ---
+  { from: 'PINK1', to: 'PARK7', kind: 'shared-mechanism', strength: 0.7, pmids: [],
+    note: 'PINK1, PRKN, and DJ-1 cooperate in a mitochondrial-quality-control axis: DJ-1 senses oxidative damage, PINK1 marks depolarised mitochondria, PRKN executes ubiquitination. Loss of any one impairs the others.' },
+  { from: 'PRKN',  to: 'PARK7', kind: 'shared-mechanism', strength: 0.65, pmids: [],
+    note: 'Parkin and DJ-1 cooperate in selective mitophagy of oxidatively-damaged mitochondria; DJ-1 acts as an upstream redox sensor that stabilises PRKN on the OMM.' },
+  { from: 'PRKN',  to: 'ATP13A2', kind: 'shared-mechanism', strength: 0.55, pmids: [],
+    note: 'Both recessive PD genes converge on selective autophagy — PRKN clears damaged mitochondria, ATP13A2 supports lysosomal acidification needed to complete the autophagy cycle.' },
+
+  // --- AD–PD cross-seeding (well-documented αSyn / Aβ / tau co-pathology) ---
+  { from: 'SNCA', to: 'APP', kind: 'shared-disease', strength: 0.7, pmids: [],
+    note: 'α-synuclein and Aβ co-aggregate and cross-seed in vitro and in dementia with Lewy bodies (DLB); Aβ accelerates αSyn fibrillation and vice versa. APP-tg mice develop αSyn pathology when crossed to SNCA-tg.' },
+  { from: 'SNCA', to: 'APOE', kind: 'modifier', strength: 0.7, pmids: [],
+    note: 'APOE4 is a risk factor for Lewy-body pathology and dementia in PD; ApoE binds αSyn and modulates its aggregation independent of Aβ. APOE4 raises αSyn pathology burden in DLB.' },
+  { from: 'PRKN',  to: 'APP',  kind: 'shared-mechanism', strength: 0.5, pmids: [],
+    note: 'Parkin ubiquitinates β-secretase products and APP-CTFs; PRKN loss raises Aβ generation in mouse models, linking recessive PD genetics to AD amyloid biology.', tentative: true },
+  { from: 'LRRK2', to: 'APP', kind: 'shared-mechanism', strength: 0.4, pmids: [],
+    note: 'LRRK2 hyperactivity has been linked to altered APP processing via Rab-mediated trafficking of BACE1; tangential AD-PD overlap signal.', tentative: true },
+
+  // --- HD aggregation overlap ---
+  { from: 'SNCA', to: 'HTT', kind: 'shared-mechanism', strength: 0.5, pmids: [],
+    note: 'αSyn and polyQ-HTT share amyloid-like aggregation biology and converge on impaired autophagy (CMA blockade); cross-seeding in vitro. Mechanistic overlap, not co-localisation in disease.', tentative: true },
+
   // --- Cross-cluster bridges that emerge from the new genes ---
   { from: 'NEFL',   to: 'TARDBP', kind: 'modifier', strength: 0.6, pmids: [], note: 'NfL CSF/serum is the principal biomarker of ongoing axonal injury in ALS, FTD, AD, MS — the cross-disease readout.', tentative: true },
   { from: 'CHCHD2', to: 'CHCHD10',kind: 'complex', strength: 0.85, pmids: [], note: 'CHCHD2 and CHCHD10 are paralogous IMS twin-CX9C proteins; co-aggregate and have overlapping ALS-PD phenotypes.' },
