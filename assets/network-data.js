@@ -12,19 +12,26 @@
 // The `kind` field colours the edge so the viewer can read "this is a
 // substrate relationship" vs "this is a cross-disease coincidence."
 //
-// Coverage: ~50 most-iconic genes from the 99-gene panel + the most
-// pedagogically important ~60 edges. Designed to be readable at one glance,
-// not to enumerate every interaction in the literature.
+// Coverage as of Round 5: ~204 nodes and ~273 edges across 11 disease groups
+// (PD, AD, ALS/FTD, HD/polyQ, Prion, Lysosomal storage, NBIA, Tauopathy
+// PSP/CBD/FTLD-tau, HSP, CMT, and a Shared core for the cross-cutting
+// machinery — autophagy, mitophagy, secretases, microglial axis, complement,
+// SNARE/SV, stress granules, ER-mitochondria contacts, lipid metabolism).
+// Of the 273 edges, ~79 are marked `tentative: true` (rendered dotted) —
+// flagged as candidates for SME validation rather than load-bearing claims.
 
 export const DISEASES = {
-  PD:    { name: "Parkinson's",     short: 'PD',    color: '#0b3b5a', soft: '#e6eef5' },
-  AD:    { name: "Alzheimer's",     short: 'AD',    color: '#7c3aed', soft: '#f3eaff' },
-  ALS:   { name: 'ALS / FTD',       short: 'ALS',   color: '#dc2626', soft: '#fee2e2' },
-  HD:    { name: 'Huntington/polyQ',short: 'HD',    color: '#b45309', soft: '#fff7d6' },
-  PRION: { name: 'Prion',           short: 'PRP',   color: '#0891b2', soft: '#cffafe' },
-  LSD:   { name: 'Lysosomal storage', short: 'LSD', color: '#15803d', soft: '#dcfce7' },
-  NBIA:  { name: 'NBIA',            short: 'NBIA',  color: '#6b21a8', soft: '#ede9fe' },
-  SHARED:{ name: 'Shared core',     short: '·',     color: '#6a7787', soft: '#f0f4f8' },
+  PD:    { name: "Parkinson's",      short: 'PD',    color: '#0b3b5a', soft: '#e6eef5' },
+  AD:    { name: "Alzheimer's",      short: 'AD',    color: '#7c3aed', soft: '#f3eaff' },
+  ALS:   { name: 'ALS / FTD',        short: 'ALS',   color: '#dc2626', soft: '#fee2e2' },
+  HD:    { name: 'Huntington/polyQ', short: 'HD',    color: '#b45309', soft: '#fff7d6' },
+  PRION: { name: 'Prion',            short: 'PRP',   color: '#0891b2', soft: '#cffafe' },
+  LSD:   { name: 'Lysosomal storage',short: 'LSD',   color: '#15803d', soft: '#dcfce7' },
+  NBIA:  { name: 'NBIA',             short: 'NBIA',  color: '#6b21a8', soft: '#ede9fe' },
+  TAU:   { name: 'Tauopathy (PSP/CBD/FTLD-tau)', short: 'TAU', color: '#4338ca', soft: '#e0e7ff' },
+  HSP:   { name: 'Hereditary spastic paraplegia', short: 'HSP', color: '#0e7490', soft: '#cffafe' },
+  CMT:   { name: 'Charcot-Marie-Tooth',           short: 'CMT', color: '#9a3412', soft: '#fed7aa' },
+  SHARED:{ name: 'Shared core',      short: '·',    color: '#6a7787', soft: '#f0f4f8' },
 };
 
 /**
@@ -189,6 +196,133 @@ export const NODES = [
   { id: 'PLCG2',     protein: 'PLCγ2',                 disease: 'SHARED', prevalence: 0.40, role: 'P522R is AD-protective; downstream of TREM2', secondary: ['AD'] },
   // FTD modifiers
   { id: 'TMEM106B',  protein: 'TMEM106B',              disease: 'SHARED', prevalence: 0.45, role: 'FTD-TDP risk modifier; lysosomal', secondary: ['ALS','LSD'] },
+
+  // ============================================================
+  // Round 5 — major expansion. ~75 new genes spanning recessive/atypical PD,
+  // LOAD GWAS microglial axis, ALS/FTD extensions, pure tauopathies (PSP/CBD/
+  // FTLD-tau), hereditary spastic paraplegias, Charcot-Marie-Tooth, polyQ SCAs,
+  // additional lysosomal storage hydrolases, mitochondrial cristae/MICOS,
+  // stress-granule biology, lipid metabolism, and microglial markers.
+  // All edges from this batch are pending SME validation; marked tentative
+  // (dotted) where the literature is suggestive rather than mechanistic.
+  // ============================================================
+
+  // ===== Atypical / recessive / juvenile PD =====
+  { id: 'VPS13C',  protein: 'VPS13C',                 disease: 'PD',  prevalence: 0.45, role: 'PARK23 — recessive early-onset PD; lipid-transfer protein at ER-mitochondria contacts; PINK1-mitophagy modulator', secondary: ['SHARED'] },
+  { id: 'SYNJ1',   protein: 'synaptojanin-1',          disease: 'PD',  prevalence: 0.45, role: 'PARK20 — recessive juvenile-onset PD; PI(4,5)P2 phosphatase; synaptic-vesicle endocytosis', secondary: ['SHARED'] },
+  { id: 'FBXO7',   protein: 'FBXO7',                   disease: 'PD',  prevalence: 0.45, role: 'PARK15 — recessive pallido-pyramidal syndrome; SCF E3 ligase substrate-receptor; PRKN partner in mitophagy', secondary: ['SHARED'] },
+  { id: 'HTRA2',   protein: 'HtrA2 / Omi',             disease: 'PD',  prevalence: 0.35, role: 'PARK13 — mitochondrial serine protease in the intermembrane space; mitochondrial QC; controversial PD link', secondary: ['SHARED'] },
+  { id: 'GIGYF2',  protein: 'GIGYF2',                  disease: 'PD',  prevalence: 0.30, role: 'PARK11 — translational repressor with 4EHP; protein-quality-control link to PD' },
+  { id: 'EIF4G1',  protein: 'eIF4G1',                  disease: 'PD',  prevalence: 0.30, role: 'PARK18 — translation initiation factor; rare AD-onset PD' },
+  { id: 'GCH1',    protein: 'GTP cyclohydrolase 1',    disease: 'PD',  prevalence: 0.55, role: 'dopa-responsive dystonia (Segawa); also identified as a PD risk gene; rate-limiting for BH4 → TH cofactor', secondary: ['SHARED'] },
+  { id: 'GBA2',    protein: 'non-lysosomal β-glucosidase', disease: 'PD', prevalence: 0.40, role: 'SPG46 / cerebellar ataxia; GBA paralog; modifies glucosylceramide pool that GBA processes', secondary: ['HSP','LSD'] },
+  { id: 'DNAJC6',  protein: 'auxilin',                 disease: 'PD',  prevalence: 0.40, role: 'PARK19 — recessive juvenile PD; clathrin uncoating co-chaperone; vesicle recycling at the synapse' },
+  { id: 'DNAJC13', protein: 'RME-8',                   disease: 'PD',  prevalence: 0.35, role: 'PARK21 — endosomal trafficking; retromer-adjacent (VPS35 axis)' },
+  { id: 'CHCHD2',  protein: 'CHCHD2',                  disease: 'PD',  prevalence: 0.45, role: 'PARK22 — mitochondrial IMS twin CX9C protein; sister to CHCHD10; Lewy-body forming Asian-onset PD', secondary: ['ALS','SHARED'] },
+  { id: 'LRRK1',   protein: 'LRRK1',                   disease: 'PD',  prevalence: 0.30, role: 'paralog of LRRK2; phosphorylates a distinct Rab subset (Rab7); osteopetrosis when lost; tangentially PD-implicated' },
+  { id: 'SH3GL2',  protein: 'endophilin-A1',           disease: 'PD',  prevalence: 0.35, role: 'BAR-domain synaptic-endocytosis protein; LRRK2 phosphorylation substrate; PD GWAS' },
+  { id: 'RIT2',    protein: 'RIT2',                    disease: 'PD',  prevalence: 0.30, role: 'small GTPase; PD GWAS; neuronal MAPK signalling' },
+
+  // ===== AD — LOAD GWAS microglial axis + secretase + Aβ-degrading =====
+  { id: 'ABCA7',   protein: 'ABCA7',                   disease: 'AD',  prevalence: 0.55, role: 'LOAD GWAS; lipid transporter; loss-of-function variants raise AD risk in multiple ancestries' },
+  { id: 'ABCA1',   protein: 'ABCA1',                   disease: 'AD',  prevalence: 0.45, role: 'cholesterol efflux to APOE; ABCA1 agonists tested for AD; Tangier disease when lost' },
+  { id: 'CR1',     protein: 'complement receptor 1',   disease: 'AD',  prevalence: 0.45, role: 'LOAD GWAS; binds C3b/C4b; microglial Aβ clearance', secondary: ['SHARED'] },
+  { id: 'MS4A6A',  protein: 'MS4A6A',                  disease: 'AD',  prevalence: 0.40, role: 'LOAD GWAS — chr11 MS4A cluster; microglial expression; modulates soluble TREM2' },
+  { id: 'INPP5D',  protein: 'SHIP1',                   disease: 'AD',  prevalence: 0.45, role: 'LOAD GWAS; microglial inhibitory phosphatase; opposes TREM2 signalling' },
+  { id: 'SPI1',    protein: 'PU.1',                    disease: 'AD',  prevalence: 0.50, role: 'master microglial transcription factor; LOAD GWAS; expression-QTL drives AD risk' },
+  { id: 'ABI3',    protein: 'ABI3',                    disease: 'AD',  prevalence: 0.40, role: 'LOAD GWAS rare-variant; microglial actin regulator; expressed in DAM state' },
+  { id: 'MEF2C',   protein: 'MEF2C',                   disease: 'AD',  prevalence: 0.40, role: 'LOAD GWAS; MADS-box TF expressed in microglia and neurons; cognitive resilience' },
+  { id: 'PTK2B',   protein: 'Pyk2',                    disease: 'AD',  prevalence: 0.40, role: 'LOAD GWAS; focal-adhesion-kinase family; Aβ-induced tau phosphorylation; synapse loss' },
+  { id: 'MME',     protein: 'neprilysin',              disease: 'AD',  prevalence: 0.55, role: 'principal Aβ-degrading endopeptidase; declines with age; somatostatin-induced' },
+  { id: 'IDE',     protein: 'insulin-degrading enzyme',disease: 'AD',  prevalence: 0.50, role: 'major soluble Aβ-degrading metallopeptidase; competes with insulin; AD-diabetes link' },
+  { id: 'ECE1',    protein: 'endothelin-converting enzyme', disease: 'AD', prevalence: 0.40, role: 'membrane metallopeptidase; cleaves Aβ; secondary to neprilysin' },
+  { id: 'NCSTN',   protein: 'nicastrin',               disease: 'AD',  prevalence: 0.40, role: 'γ-secretase substrate-recognition subunit; partners with PSEN1/PSEN2/APH1/PEN-2' },
+  { id: 'APH1A',   protein: 'APH-1A',                  disease: 'AD',  prevalence: 0.35, role: 'γ-secretase complex; required for assembly and stability of PSEN-NCSTN core' },
+
+  // ===== ALS / FTD extension =====
+  { id: 'VCP',     protein: 'VCP / p97',               disease: 'ALS', prevalence: 0.60, role: 'AAA+ ATPase; ALS14 / IBMPFD / multisystem proteinopathy; ubiquitin-dependent segregase; ERAD + autophagy' },
+  { id: 'MATR3',   protein: 'matrin-3',                disease: 'ALS', prevalence: 0.45, role: 'ALS21 — nuclear matrix RNA/DNA-binding protein; partners with TDP-43' },
+  { id: 'PFN1',    protein: 'profilin-1',              disease: 'ALS', prevalence: 0.40, role: 'ALS18 — actin-binding; mutations destabilise the cytoskeleton in motor axons' },
+  { id: 'NEK1',    protein: 'NEK1 kinase',             disease: 'ALS', prevalence: 0.45, role: 'ALS24 — ciliary kinase; DNA-damage response; oligogenic risk modifier in ALS' },
+  { id: 'SETX',    protein: 'senataxin',               disease: 'ALS', prevalence: 0.40, role: 'ALS4 / ataxia-AOA2; RNA/DNA helicase; resolves R-loops' },
+  { id: 'ANXA11',  protein: 'annexin A11',             disease: 'ALS', prevalence: 0.45, role: 'ALS23 — Ca²⁺-dependent phospholipid-binding; RNP granule tether to lysosomes for axonal transport' },
+  { id: 'CCNF',    protein: 'cyclin F',                disease: 'ALS', prevalence: 0.40, role: 'ALS/FTD — SCF E3 ligase substrate receptor; mutations stabilise TDP-43' },
+  { id: 'CHMP2B',  protein: 'CHMP2B',                  disease: 'ALS', prevalence: 0.40, role: 'FTD3 — ESCRT-III subunit; endosomal sorting; autophagosome maturation' },
+  { id: 'VAPB',    protein: 'VAPB',                    disease: 'ALS', prevalence: 0.40, role: 'ALS8 — ER membrane MSP-domain protein; ER-mitochondrial contacts' },
+  { id: 'ALS2',    protein: 'alsin',                   disease: 'ALS', prevalence: 0.40, role: 'juvenile ALS2 / infantile-onset HSP / PLSJ; RabGEF for Rab5 endosomes', secondary: ['HSP'] },
+  { id: 'HNRNPA1', protein: 'hnRNPA1',                 disease: 'ALS', prevalence: 0.45, role: 'multisystem proteinopathy; prion-like LCD; phase separation; rare ALS variant' },
+  { id: 'HNRNPA2B1', protein: 'hnRNPA2/B1',            disease: 'ALS', prevalence: 0.40, role: 'multisystem proteinopathy; prion-like LCD; partners with hnRNPA1' },
+  { id: 'TAF15',   protein: 'TAF15',                   disease: 'ALS', prevalence: 0.40, role: 'FET-family RNA-binding protein (FUS, EWSR1, TAF15); recently identified amyloid in FTLD-FET' },
+  { id: 'EWSR1',   protein: 'EWSR1',                   disease: 'ALS', prevalence: 0.35, role: 'FET family; rare ALS variant; aggregates in FTLD-FET' },
+  { id: 'ELP3',    protein: 'elongator complex',       disease: 'ALS', prevalence: 0.30, role: 'tRNA modification (mcm5s2U34); ALS susceptibility; motor-axon vulnerability' },
+
+  // ===== Pure tauopathies (PSP, CBD, FTLD-tau) =====
+  { id: 'STX6',    protein: 'syntaxin-6',              disease: 'TAU', prevalence: 0.55, role: 'PSP GWAS; lysosomal/Golgi SNARE; tau secretion/seeding axis', secondary: ['AD'] },
+  { id: 'EIF2AK3', protein: 'PERK',                    disease: 'TAU', prevalence: 0.50, role: 'PSP GWAS; ER-stress kinase; phosphorylates eIF2α; integrated stress response', secondary: ['SHARED'] },
+  { id: 'MOBP',    protein: 'MOBP',                    disease: 'TAU', prevalence: 0.55, role: 'PSP & FTLD-tau GWAS; myelin/oligodendrocyte basic protein; oligodendroglial tau pathology' },
+  { id: 'IRF8',    protein: 'IRF8',                    disease: 'TAU', prevalence: 0.45, role: 'PSP GWAS; microglial/myeloid transcription factor', secondary: ['SHARED'] },
+  { id: 'CDKN2A',  protein: 'p16 / p14ARF',            disease: 'TAU', prevalence: 0.40, role: 'PSP GWAS; cell-cycle regulator; cellular senescence in glia' },
+  { id: 'AFG3L2',  protein: 'AFG3L2 (m-AAA)',          disease: 'TAU', prevalence: 0.50, role: 'SCA28 + spastic ataxia; partner of SPG7 in m-AAA inner-membrane protease; OPA1 processing', secondary: ['SHARED'] },
+
+  // ===== Hereditary spastic paraplegia (HSP) =====
+  { id: 'SPAST',   protein: 'spastin',                 disease: 'HSP', prevalence: 0.85, role: 'SPG4 — most common AD-HSP; microtubule-severing AAA+ ATPase; ER shaping' },
+  { id: 'ATL1',    protein: 'atlastin-1',              disease: 'HSP', prevalence: 0.55, role: 'SPG3A — ER-membrane dynamin-family GTPase; tubular ER fusion' },
+  { id: 'REEP1',   protein: 'REEP1',                   disease: 'HSP', prevalence: 0.55, role: 'SPG31 — ER-shaping hairpin protein; partners with atlastin/spastin' },
+  { id: 'SPG11',   protein: 'spatacsin',               disease: 'HSP', prevalence: 0.60, role: 'commonest recessive HSP; juvenile ALS5; required for autophagic lysosome reformation', secondary: ['ALS','LSD'] },
+  { id: 'KIF1A',   protein: 'kinesin-3 / KIF1A',       disease: 'HSP', prevalence: 0.55, role: 'SPG30 + intellectual disability; anterograde kinesin; SV precursor transport in axons' },
+
+  // ===== Charcot-Marie-Tooth (CMT) =====
+  { id: 'PMP22',   protein: 'PMP22',                   disease: 'CMT', prevalence: 0.95, role: 'CMT1A — most common CMT; tetraspan PNS myelin protein; duplication on chr17p' },
+  { id: 'MPZ',     protein: 'MPZ / P0',                disease: 'CMT', prevalence: 0.70, role: 'CMT1B — major PNS myelin Ig-domain adhesion molecule; >100 dominant mutations' },
+  { id: 'GJB1',    protein: 'connexin-32',             disease: 'CMT', prevalence: 0.65, role: 'CMTX1 — X-linked CMT; Schwann-cell gap-junction protein' },
+  { id: 'NEFL',    protein: 'neurofilament-L',         disease: 'CMT', prevalence: 0.65, role: 'CMT2E + ALS rare; serum/CSF NfL is the leading global biomarker of axonal injury', secondary: ['ALS','SHARED'] },
+  { id: 'DCTN1',   protein: 'dynactin p150',           disease: 'CMT', prevalence: 0.50, role: 'Perry syndrome (parkinsonism + ALS); dynein adaptor; retrograde axonal transport', secondary: ['ALS','PD'] },
+
+  // ===== HD / SCA polyQ extension =====
+  { id: 'ATXN7',   protein: 'ataxin-7',                disease: 'HD',  prevalence: 0.45, role: 'SCA7 — polyQ; SAGA transcriptional coactivator; cone-rod dystrophy adds retinal degeneration' },
+  { id: 'ATXN10',  protein: 'ataxin-10',               disease: 'HD',  prevalence: 0.40, role: 'SCA10 — non-coding pentanucleotide (ATTCT) expansion; ataxia + epilepsy' },
+  { id: 'CACNA1A', protein: 'Cav2.1 / CACNA1A',        disease: 'HD',  prevalence: 0.55, role: 'SCA6 polyQ; also EA2 + FHM1; P/Q-type Ca²⁺ channel pore' },
+  { id: 'TBP',     protein: 'TBP',                     disease: 'HD',  prevalence: 0.40, role: 'SCA17 — polyQ in TATA-binding protein; transcriptional master regulator' },
+  { id: 'ATN1',    protein: 'atrophin-1',              disease: 'HD',  prevalence: 0.40, role: 'DRPLA — polyQ; dentatorubral-pallidoluysian atrophy; transcriptional corepressor' },
+  { id: 'PPP2R2B', protein: 'PP2A B-subunit',          disease: 'HD',  prevalence: 0.35, role: 'SCA12 — non-coding CAG expansion; phosphatase regulatory subunit' },
+
+  // ===== Lysosomal storage extension =====
+  { id: 'ARSA',    protein: 'arylsulfatase A',         disease: 'LSD', prevalence: 0.55, role: 'metachromatic leukodystrophy; sulfatide degradation; gene therapy approved (atidarsagene)' },
+  { id: 'ASAH1',   protein: 'acid ceramidase',         disease: 'LSD', prevalence: 0.45, role: 'Farber disease; SMA-PME; ceramide hydrolysis' },
+  { id: 'GLB1',    protein: 'β-galactosidase',         disease: 'LSD', prevalence: 0.55, role: 'GM1 gangliosidosis; Morquio B; broad gangliosides + keratan sulfate substrate' },
+  { id: 'MCOLN1',  protein: 'TRPML1',                  disease: 'LSD', prevalence: 0.55, role: 'mucolipidosis IV; lysosomal cation channel; Ca²⁺ release for lysosomal trafficking and TFEB activation' },
+  { id: 'HEXB',    protein: 'β-hexosaminidase β',      disease: 'LSD', prevalence: 0.50, role: 'Sandhoff disease (loss of HexA + HexB); subunit shared with HEXA' },
+  { id: 'GNS',     protein: 'N-acetylglucosamine-6-sulfatase', disease: 'LSD', prevalence: 0.40, role: 'mucopolysaccharidosis IIID (Sanfilippo D); heparan sulfate breakdown' },
+
+  // ===== Mitochondrial cristae / MICOS / mtDNA =====
+  { id: 'IMMT',    protein: 'mitofilin / MIC60',       disease: 'SHARED', prevalence: 0.50, role: 'MICOS core; defines crista junctions; partners with SAM50 for OMM-IMM bridging' },
+  { id: 'SAM50',   protein: 'SAM50',                   disease: 'SHARED', prevalence: 0.45, role: 'sorting-and-assembly machinery; OMM β-barrel insertion; MICOS-SAM bridge' },
+  { id: 'COQ8A',   protein: 'COQ8A / CABC1',           disease: 'SHARED', prevalence: 0.45, role: 'SCAR9 ataxia; CoQ10 biosynthesis kinase-like; mitochondrial respiratory-chain support' },
+  { id: 'DGUOK',   protein: 'deoxyguanosine kinase',   disease: 'SHARED', prevalence: 0.40, role: 'mtDNA depletion syndrome (hepatocerebral); deoxynucleotide salvage' },
+  { id: 'TWNK',    protein: 'twinkle helicase',        disease: 'SHARED', prevalence: 0.50, role: 'mtDNA replicative helicase; PEO; mtDNA depletion + multiple-deletion syndromes' },
+
+  // ===== Stress granules / integrated stress response =====
+  { id: 'G3BP1',   protein: 'G3BP1',                   disease: 'SHARED', prevalence: 0.55, role: 'canonical stress-granule scaffold; nucleator of cytoplasmic SGs' },
+  { id: 'G3BP2',   protein: 'G3BP2',                   disease: 'SHARED', prevalence: 0.40, role: 'paralog of G3BP1; redundant SG-nucleation function' },
+  { id: 'EIF2S1',  protein: 'eIF2α',                   disease: 'SHARED', prevalence: 0.55, role: 'integrated stress response; phosphorylated at Ser51 by PERK/PKR/GCN2/HRI; global translation attenuation', secondary: ['TAU','ALS'] },
+
+  // ===== Glial / microglial markers =====
+  { id: 'CSF1R',   protein: 'CSF1R',                   disease: 'SHARED', prevalence: 0.60, role: 'microglial RTK; ALSP/HDLS when mutated (adult-onset leukoencephalopathy); CSF1R inhibitors deplete microglia', secondary: ['AD'] },
+  { id: 'CX3CR1',  protein: 'CX3CR1',                  disease: 'SHARED', prevalence: 0.45, role: 'microglial fractalkine receptor; tones down microglial reactivity; canonical microglia marker', secondary: ['AD'] },
+  { id: 'P2RY12',  protein: 'P2RY12',                  disease: 'SHARED', prevalence: 0.45, role: 'homeostatic microglia marker; ADP receptor; lost during DAM transition', secondary: ['AD'] },
+  { id: 'AIF1',    protein: 'Iba-1',                   disease: 'SHARED', prevalence: 0.40, role: 'ionised calcium binding adaptor; pan-microglial/macrophage immunostaining marker' },
+
+  // ===== Lipid metabolism / ceramide axis =====
+  { id: 'SREBF1',  protein: 'SREBP-1',                 disease: 'SHARED', prevalence: 0.40, role: 'sterol regulatory element binding protein; lipogenesis TF; identified as ALS modifier via lipidomics' },
+  { id: 'SPTLC1',  protein: 'SPTLC1',                  disease: 'ALS',    prevalence: 0.40, role: 'HSAN1 + recent juvenile ALS; serine palmitoyltransferase; sphingolipid biosynthesis entry point' },
+  { id: 'ELOVL5',  protein: 'ELOVL5',                  disease: 'HD',     prevalence: 0.35, role: 'SCA38 — fatty-acid elongase; polyunsaturated-fatty-acid biosynthesis' },
+
+  // ===== Prion / PrP chaperones =====
+  { id: 'STIP1',   protein: 'STI1 / HOP',              disease: 'PRION',  prevalence: 0.45, role: 'HSP70-HSP90 organising co-chaperone; secreted ligand for cellular PrP; neuroprotective' },
+
+  // ===== Missing nodes referenced by earlier edges (fixes orphan edges) =====
+  { id: 'DNM1L',   protein: 'Drp1 (DNM1L)',            disease: 'SHARED', prevalence: 0.70, role: 'dynamin-related protein 1; principal mitochondrial fission GTPase; recruited to OMM by MFF/FIS1/MID49/MID51; encephalopathy when mutated', secondary: ['AD','HD','PD'] },
+  { id: 'ATG5',    protein: 'ATG5',                    disease: 'SHARED', prevalence: 0.55, role: 'ATG12-ATG5 conjugate is the E3-like ligase for LC3 lipidation; required for canonical autophagy' },
 ];
 
 /**
@@ -700,6 +834,163 @@ export const EDGES = [
   { from: 'PRKN', to: 'OPA1', kind: 'shared-mechanism', strength: 0.5,
     note: 'Parkin promotes turnover of inner-membrane fusion machinery indirectly via OMM ubiquitination; loss of PRKN perturbs OPA1-dependent cristae remodelling.',
     pmids: ['21701566'] },
+
+  // ============================================================
+  // Round 5 — edges for the expansion batch. ~100 edges spanning recessive/
+  // atypical PD subtypes, AD microglial LOAD GWAS axis, Aβ-degrading proteases,
+  // ALS/FTD extensions, pure tauopathies (PSP/CBD/FTLD-tau), HSP/CMT
+  // axonopathies, polyQ SCAs, additional lysosomal hydrolases, mitochondrial
+  // cristae/MICOS, stress granules, and lipid metabolism. Citations deferred
+  // to SME validation — renderer falls back to NCBI gene-page links.
+  // ============================================================
+
+  // --- Recessive / atypical PD intra-cluster ---
+  { from: 'VPS13C', to: 'PINK1',  kind: 'shared-mechanism', strength: 0.65, pmids: [], note: 'VPS13C loss raises PINK1-PRKN mitophagy threshold; loss-of-function variants cause early-onset PD via mitochondrial-quality-control failure.' },
+  { from: 'VPS13C', to: 'PRKN',   kind: 'shared-mechanism', strength: 0.6, pmids: [], note: 'VPS13C lipid-transfer activity at ER-mitochondria contacts feeds the PRKN-dependent mitophagy pathway; PARK23.' },
+  { from: 'SYNJ1',  to: 'SNCA',   kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'Synaptojanin-1 dephosphorylates PI(4,5)P2 for SV recycling; loss perturbs synaptic recycling and accelerates αSyn deposition.' },
+  { from: 'SYNJ1',  to: 'DNAJC6', kind: 'complex', strength: 0.7, pmids: [], note: 'Auxilin and synaptojanin-1 cooperate at the clathrin-coated-vesicle uncoating step of SV endocytosis; both cause recessive juvenile PD when lost.' },
+  { from: 'DNAJC6', to: 'SH3GL2', kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'Auxilin (DNAJC6) and endophilin-A1 (SH3GL2) are convergent components of clathrin-mediated synaptic-vesicle endocytosis; both linked to PD.' },
+  { from: 'FBXO7',  to: 'PRKN',   kind: 'complex', strength: 0.7, pmids: [], note: 'FBXO7 binds PRKN and PINK1 and is required for efficient PRKN recruitment to depolarised mitochondria; loss causes PARK15.' },
+  { from: 'FBXO7',  to: 'PINK1',  kind: 'complex', strength: 0.6, pmids: [], note: 'FBXO7 is recruited to damaged mitochondria during mitophagy and supports PINK1-PRKN signalling.' },
+  { from: 'HTRA2',  to: 'PINK1',  kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'HtrA2/Omi is a mitochondrial IMS serine protease; PINK1 phosphorylates HTRA2; convergent mitochondrial-QC role.' },
+  { from: 'GBA2',   to: 'GBA',    kind: 'shared-mechanism', strength: 0.65, pmids: [], note: 'GBA2 is the non-lysosomal glucosylceramidase; together with lysosomal GBA it sets cellular glucosylceramide tone; both perturb αSyn aggregation.' },
+  { from: 'GBA2',   to: 'SNCA',   kind: 'shared-mechanism', strength: 0.45, pmids: [], note: 'GBA2 loss shifts glucosylceramide handling and modifies αSyn aggregation in cellular PD models.', tentative: true },
+  { from: 'GCH1',   to: 'TH',     kind: 'kinase-substrate', strength: 0.8, pmids: [], note: 'GCH1 is rate-limiting for tetrahydrobiopterin (BH4) biosynthesis; BH4 is the obligate TH cofactor for dopamine synthesis. GCH1 loss → DRD.' },
+  { from: 'GCH1',   to: 'SNCA',   kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'GCH1 loss-of-function variants raise PD risk; lower BH4 increases oxidative stress in DA neurons.', tentative: true },
+  { from: 'DNAJC13',to: 'VPS35',  kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'DNAJC13/RME-8 acts in the same retromer-/endosomal-trafficking axis as VPS35; both AD-PD when mutated.' },
+  { from: 'CHCHD2', to: 'PRKN',   kind: 'shared-mechanism', strength: 0.45, pmids: [], note: 'CHCHD2 is a mitochondrial IMS protein; PARK22 mutations destabilise complex IV and engage mitophagy.', tentative: true },
+  { from: 'LRRK1',  to: 'LRRK2',  kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'LRRK1 and LRRK2 are paralogous ROCO kinases; LRRK1 phosphorylates Rab7 while LRRK2 targets Rab8/10/12; partial pathway redundancy.' },
+  { from: 'SH3GL2', to: 'LRRK2',  kind: 'kinase-substrate', strength: 0.5, pmids: [], note: 'LRRK2 phosphorylates endophilin-A1 at Ser75 and regulates synaptic-vesicle endocytosis; PD-relevant.', tentative: true },
+  { from: 'RIT2',   to: 'SNCA',   kind: 'shared-mechanism', strength: 0.35, pmids: [], note: 'RIT2 GWAS signal sits adjacent to SNCA-related neuronal MAPK signalling; convergent PD-risk locus.', tentative: true },
+  { from: 'EIF4G1', to: 'GIGYF2', kind: 'complex', strength: 0.5, pmids: [], note: 'eIF4G1 and GIGYF2 cooperate in translational control; both nominated as rare PD genes; convergent proteostasis link.', tentative: true },
+
+  // --- AD — LOAD GWAS microglial axis ---
+  { from: 'SPI1',   to: 'TREM2',  kind: 'kinase-substrate', strength: 0.7, pmids: [], note: 'PU.1 (SPI1) is the master microglial transcription factor and binds the TREM2 promoter; SPI1 risk variant alters TREM2 expression.' },
+  { from: 'SPI1',   to: 'CSF1R',  kind: 'kinase-substrate', strength: 0.7, pmids: [], note: 'SPI1/PU.1 directly drives CSF1R expression in microglia; both required for microglial identity.' },
+  { from: 'INPP5D', to: 'TREM2',  kind: 'opposes', strength: 0.65, pmids: [], note: 'SHIP1 (INPP5D) hydrolyses PI(3,4,5)P3 generated downstream of TREM2-DAP12 signalling; LOAD risk allele alters microglial reactivity.' },
+  { from: 'PLCG2',  to: 'INPP5D', kind: 'opposes', strength: 0.5, pmids: [], note: 'PLCγ2 (protective P522R) and SHIP1 (risk variants) sit on opposite arms of the TREM2 signalling output.', tentative: true },
+  { from: 'ABCA7',  to: 'APOE',   kind: 'shared-mechanism', strength: 0.65, pmids: [], note: 'ABCA7 and ABCA1 efflux phospholipid/cholesterol to ApoE; both LOAD GWAS hits converge on the brain lipoprotein-particle pathway.' },
+  { from: 'ABCA1',  to: 'APOE',   kind: 'kinase-substrate', strength: 0.7, pmids: [], note: 'ABCA1 lipidates ApoE-containing HDL particles in the CNS; ABCA1 agonists raise lipidated ApoE and lower Aβ.' },
+  { from: 'ABCA7',  to: 'APP',    kind: 'shared-mechanism', strength: 0.45, pmids: [], note: 'ABCA7 modulates microglial Aβ phagocytosis and amyloid plaque burden in AD models.', tentative: true },
+  { from: 'CR1',    to: 'C3',     kind: 'receptor-ligand', strength: 0.7, pmids: [], note: 'CR1 binds complement C3b/C4b and clears opsonised material; LOAD risk variants reduce CR1 efficacy in Aβ handling.' },
+  { from: 'CR1',    to: 'APP',    kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'CR1 modulates Aβ clearance by microglia; LOAD GWAS hit.', tentative: true },
+  { from: 'MS4A6A', to: 'TREM2',  kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'MS4A6A variants modulate soluble TREM2 (sTREM2) levels in CSF, linking the MS4A locus and TREM2 axis in AD.' },
+  { from: 'ABI3',   to: 'TREM2',  kind: 'shared-mechanism', strength: 0.45, pmids: [], note: 'ABI3 is highly expressed in DAM microglia together with TREM2; rare-variant LOAD GWAS signal.', tentative: true },
+  { from: 'MEF2C',  to: 'SPI1',   kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'MEF2C and SPI1 are coordinate microglial transcription factors; both LOAD GWAS; cognitive-resilience axis.', tentative: true },
+  { from: 'PTK2B',  to: 'MAPT',   kind: 'kinase-substrate', strength: 0.55, pmids: [], note: 'Pyk2 (PTK2B) is activated by Aβ and phosphorylates tau; PTK2B LOAD-risk variant drives synapse loss.' },
+  { from: 'PTK2B',  to: 'APP',    kind: 'shared-mechanism', strength: 0.45, pmids: [], note: 'Aβ activates Pyk2, linking the AD-risk PTK2B locus to amyloid-driven postsynaptic dysfunction.', tentative: true },
+
+  // --- AD — secretase complex + Aβ-degrading proteases ---
+  { from: 'NCSTN',  to: 'PSEN1',  kind: 'complex', strength: 0.95, pmids: [], note: 'Nicastrin recognises γ-secretase substrate N-termini; the active γ-secretase tetramer is PSEN1/NCSTN/APH-1/PEN-2.' },
+  { from: 'NCSTN',  to: 'APH1A',  kind: 'complex', strength: 0.85, pmids: [], note: 'APH-1A and nicastrin form the early γ-secretase subcomplex that nucleates PSEN1 incorporation.' },
+  { from: 'APH1A',  to: 'PSEN1',  kind: 'complex', strength: 0.9, pmids: [], note: 'APH-1A is required for PSEN1 endoproteolytic maturation and γ-secretase assembly.' },
+  { from: 'MME',    to: 'APP',    kind: 'kinase-substrate', strength: 0.85, pmids: [], note: 'Neprilysin (MME) is the principal Aβ-degrading endopeptidase in brain; declines with age and AD progression.' },
+  { from: 'IDE',    to: 'APP',    kind: 'kinase-substrate', strength: 0.8, pmids: [], note: 'Insulin-degrading enzyme cleaves soluble Aβ; competes with insulin substrate; linked to T2D-AD co-morbidity.' },
+  { from: 'ECE1',   to: 'APP',    kind: 'kinase-substrate', strength: 0.5, pmids: [], note: 'Endothelin-converting enzyme 1 degrades Aβ as a secondary Aβ-clearing protease.' },
+
+  // --- ALS / FTD extension ---
+  { from: 'VCP',    to: 'TARDBP', kind: 'shared-mechanism', strength: 0.75, pmids: [], note: 'VCP/p97 extracts ubiquitinated stress-granule components and drives clearance of cytoplasmic TDP-43 aggregates; VCP loss-of-function aggravates TDP-43 proteinopathy.' },
+  { from: 'VCP',    to: 'SQSTM1', kind: 'shared-mechanism', strength: 0.7, pmids: [], note: 'VCP and p62 cooperate in autophagic clearance of ubiquitinated cargo; both mutated in multisystem proteinopathy.' },
+  { from: 'VCP',    to: 'MAP1LC3B', kind: 'shared-mechanism', strength: 0.6, pmids: [], note: 'VCP segregates ubiquitinated proteins and gates their handoff to LC3-driven selective autophagy.', tentative: true },
+  { from: 'MATR3',  to: 'TARDBP', kind: 'complex', strength: 0.7, pmids: [], note: 'Matrin-3 directly binds TDP-43 within nuclear matrix RNA-binding complexes; ALS21 mutations alter the partnership.' },
+  { from: 'PFN1',   to: 'TARDBP', kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'Profilin-1 mutations destabilise cytoskeleton and modify TDP-43 aggregation propensity in motor neurons.', tentative: true },
+  { from: 'NEK1',   to: 'C9orf72', kind: 'modifier', strength: 0.55, pmids: [], note: 'NEK1 loss-of-function variants raise ALS risk and modify C9-ALS clinical course; oligogenic ALS-risk landscape.' },
+  { from: 'SETX',   to: 'TARDBP', kind: 'shared-mechanism', strength: 0.45, pmids: [], note: 'Senataxin resolves R-loops and protects motor neurons; SETX dysfunction overlaps with TDP-43-related transcriptional stress.', tentative: true },
+  { from: 'ANXA11', to: 'TARDBP', kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'Annexin A11 tethers RNP granules (with TDP-43 cargo) to lysosomes for axonal transport; ALS mutations disrupt the tether.' },
+  { from: 'ANXA11', to: 'LAMP1',  kind: 'complex', strength: 0.5, pmids: [], note: 'ANXA11 mediates the granule-to-LAMP1+ lysosome tether that underlies long-distance RNP delivery in axons.', tentative: true },
+  { from: 'CCNF',   to: 'TARDBP', kind: 'kinase-substrate', strength: 0.55, pmids: [], note: 'Cyclin F is an SCF E3 substrate adaptor for TDP-43; ALS/FTD-causing CCNF mutations stabilise TDP-43 ubiquitinated species.' },
+  { from: 'CHMP2B', to: 'MAP1LC3B', kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'CHMP2B is an ESCRT-III subunit required for autophagosome maturation; FTD3-causing C-terminal truncations block fusion.' },
+  { from: 'VAPB',   to: 'PINK1',  kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'VAPB defines ER-mitochondria contact sites where PINK1-PRKN mitophagy is coordinated; ALS8.', tentative: true },
+  { from: 'ALS2',   to: 'SPAST',  kind: 'shared-disease', strength: 0.45, pmids: [], note: 'Both cause overlapping juvenile motor-axonopathy spectrums (ALS2/HSP); convergent axonal-cytoskeleton biology.', tentative: true },
+  { from: 'HNRNPA1', to: 'TARDBP', kind: 'shared-mechanism', strength: 0.6, pmids: [], note: 'hnRNPA1 phase-separates via its prion-like LCD, similarly to TDP-43; co-aggregates in MSP and ALS.' },
+  { from: 'HNRNPA1', to: 'HNRNPA2B1', kind: 'shared-mechanism', strength: 0.7, pmids: [], note: 'Paralogous hnRNP family with shared prion-like LCDs; both cause multisystem proteinopathy.' },
+  { from: 'TAF15',  to: 'FUS',    kind: 'shared-mechanism', strength: 0.75, pmids: [], note: 'TAF15 + EWSR1 + FUS = FET family; share low-complexity domains and phase-separation behaviour; co-aggregate in FTLD-FET.' },
+  { from: 'EWSR1',  to: 'FUS',    kind: 'shared-mechanism', strength: 0.65, pmids: [], note: 'FET-family paralogs; share phase-separation biology.' },
+  { from: 'EWSR1',  to: 'TAF15',  kind: 'complex', strength: 0.55, pmids: [], note: 'TAF15 and EWSR1 co-aggregate in FTLD-FET.' },
+  { from: 'ELP3',   to: 'TARDBP', kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'Elongator complex (ELP3) tRNA modification is a motor-neuron-specific vulnerability shared with TDP-43 proteinopathies.', tentative: true },
+
+  // --- Pure tauopathies (PSP/CBD/FTLD-tau) ---
+  { from: 'STX6',   to: 'MAPT',   kind: 'shared-mechanism', strength: 0.7, pmids: [], note: 'Syntaxin-6 GWAS-identified PSP risk gene; lysosomal/Golgi SNARE; tau secretion and tau seeding axis.' },
+  { from: 'STX6',   to: 'STX17',  kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'Syntaxin-6 and syntaxin-17 operate on adjacent membrane-fusion steps of the autophagosome-lysosome system.', tentative: true },
+  { from: 'EIF2AK3',to: 'MAPT',   kind: 'shared-mechanism', strength: 0.65, pmids: [], note: 'PERK (EIF2AK3) GWAS-identified PSP risk gene; ER-stress kinase upstream of integrated stress response; tau induction.' },
+  { from: 'EIF2AK3',to: 'EIF2S1', kind: 'kinase-substrate', strength: 0.95, pmids: [], note: 'PERK phosphorylates eIF2α at Ser51 — the obligate trigger of the integrated stress response.' },
+  { from: 'EIF2S1', to: 'MAPT',   kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'Sustained eIF2α-P drives ATF4-mediated transcriptional reprogramming that exacerbates tau pathology and synapse loss.', tentative: true },
+  { from: 'MOBP',   to: 'MAPT',   kind: 'shared-disease', strength: 0.55, pmids: [], note: 'MOBP variants are tauopathy GWAS hits; oligodendroglial coiled-body tau pathology in PSP and CBD.' },
+  { from: 'IRF8',   to: 'MAPT',   kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'IRF8 microglial TF axis is implicated in PSP risk; microglia-tau crosstalk.', tentative: true },
+  { from: 'CDKN2A', to: 'MAPT',   kind: 'shared-mechanism', strength: 0.35, pmids: [], note: 'CDKN2A senescence locus is a PSP GWAS hit; glial senescence drives tau accumulation.', tentative: true },
+  { from: 'AFG3L2', to: 'SPG7',   kind: 'complex', strength: 0.95, pmids: [], note: 'AFG3L2 and SPG7 form the m-AAA inner-mitochondrial-membrane protease that processes OPA1; AFG3L2 mutations cause SCA28.' },
+  { from: 'AFG3L2', to: 'OPA1',   kind: 'kinase-substrate', strength: 0.8, pmids: [], note: 'm-AAA protease (AFG3L2 + SPG7) cleaves OPA1 to its short, fission-competent form; loss raises cristae instability.' },
+
+  // --- HSP intra-cluster ---
+  { from: 'SPAST',  to: 'ATL1',   kind: 'complex', strength: 0.7, pmids: [], note: 'SPAST and ATL1 cooperate to shape the tubular ER; SPG4 + SPG3A are the two commonest dominant HSPs.' },
+  { from: 'SPAST',  to: 'REEP1',  kind: 'complex', strength: 0.65, pmids: [], note: 'REEP1 partners with spastin and atlastin in ER-shaping; SPG31 dominant HSP.' },
+  { from: 'ATL1',   to: 'REEP1',  kind: 'complex', strength: 0.65, pmids: [], note: 'Atlastin and REEP1 cooperate in tubular-ER fusion; same ER-shaping module.' },
+  { from: 'SPG11',  to: 'ALS2',   kind: 'shared-disease', strength: 0.55, pmids: [], note: 'Both cause juvenile ALS / HSP spectrum disorders; spatacsin and alsin both involved in endolysosomal trafficking.', tentative: true },
+  { from: 'SPG11',  to: 'LAMP1',  kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'Spatacsin is required for autophagic-lysosome reformation (ALR); SPG11 loss causes lysosomal swelling.' },
+  { from: 'KIF1A',  to: 'KIF5A',  kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'Paralogous kinesin-3/kinesin-1 anterograde motors; both implicated in HSP-axon spectrum.', tentative: true },
+
+  // --- CMT intra-cluster ---
+  { from: 'PMP22',  to: 'MPZ',    kind: 'shared-disease', strength: 0.75, pmids: [], note: 'PMP22 and MPZ are the two principal PNS-myelin proteins; CMT1A (PMP22 dup) and CMT1B (MPZ point mutations).' },
+  { from: 'MPZ',    to: 'GJB1',   kind: 'shared-disease', strength: 0.55, pmids: [], note: 'Demyelinating CMT family — MPZ + GJB1 are both Schwann-cell proteins; CMT1B + CMTX1.' },
+  { from: 'NEFL',   to: 'MFN2',   kind: 'shared-disease', strength: 0.6, pmids: [], note: 'CMT2 axonal family — neurofilament light (CMT2E) and mitofusin-2 (CMT2A); convergent on motor-axon energetics.' },
+  { from: 'NEFL',   to: 'TARDBP', kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'TDP-43 directly stabilises NEFL mRNA; loss of nuclear TDP-43 in ALS lowers NEFL transcript and contributes to axonal failure; serum NfL is the leading ALS biomarker.' },
+  { from: 'DCTN1',  to: 'KIF5A',  kind: 'opposes', strength: 0.55, pmids: [], note: 'Dynactin (DCTN1) couples cargo to retrograde dynein; KIF5A drives anterograde transport. Both mutated in ALS/HSP spectrum — bidirectional axonal-transport failure.' },
+  { from: 'DCTN1',  to: 'TARDBP', kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'Perry syndrome (DCTN1) causes parkinsonism + TDP-43 pathology in brainstem motor nuclei.', tentative: true },
+
+  // --- HD / SCA polyQ extension ---
+  { from: 'ATXN7',  to: 'HTT',    kind: 'shared-mechanism', strength: 0.6, pmids: [], note: 'SCA7 and HD both polyQ-expansion diseases; share aggregation biology and transcriptional dysregulation.' },
+  { from: 'ATXN7',  to: 'ATXN1',  kind: 'shared-disease', strength: 0.55, pmids: [], note: 'polyQ SCA family.' },
+  { from: 'ATXN10', to: 'ATXN3',  kind: 'shared-disease', strength: 0.4, pmids: [], note: 'SCA family; ATXN10 is non-coding pentanucleotide rather than polyQ.', tentative: true },
+  { from: 'CACNA1A',to: 'ATXN1',  kind: 'shared-disease', strength: 0.5, pmids: [], note: 'SCA6 (CACNA1A polyQ) and SCA1 (ATXN1 polyQ) — same polyQ-SCA family.' },
+  { from: 'TBP',    to: 'HTT',    kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'SCA17 (TBP polyQ) and HD (HTT polyQ) share polyQ pathology and transcriptional dysregulation.' },
+  { from: 'TBP',    to: 'AR',     kind: 'shared-disease', strength: 0.45, pmids: [], note: 'polyQ family (SBMA and SCA17).' },
+  { from: 'ATN1',   to: 'HTT',    kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'DRPLA (ATN1 polyQ) and HD (HTT polyQ) — overlapping clinical and pathological features; both polyQ.' },
+  { from: 'PPP2R2B',to: 'ATXN1',  kind: 'shared-disease', strength: 0.4, pmids: [], note: 'SCA12 (non-coding CAG) and SCA1 — same SCA family.', tentative: true },
+
+  // --- Lysosomal storage extension ---
+  { from: 'ARSA',   to: 'GALC',   kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'Sulfatide degradation enzymes — ARSA (MLD) and GALC (Krabbe) cause demyelinating LSDs.' },
+  { from: 'GLB1',   to: 'HEXA',   kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'Both lysosomal glycoside hydrolases catalysing ganglioside breakdown (GM1 and GM2); cause early-onset neurodegenerative LSDs.' },
+  { from: 'HEXB',   to: 'HEXA',   kind: 'complex', strength: 0.95, pmids: [], note: 'HEXA-HEXB heterodimer (β-hexosaminidase A); HEXB-HEXB homodimer (HexB); Tay-Sachs and Sandhoff diseases respectively.' },
+  { from: 'MCOLN1', to: 'TFEB',   kind: 'kinase-substrate', strength: 0.7, pmids: [], note: 'TRPML1 (MCOLN1)-mediated lysosomal Ca²⁺ release activates calcineurin to dephosphorylate TFEB and trigger CLEAR-network induction.' },
+  { from: 'MCOLN1', to: 'LAMP1',  kind: 'complex', strength: 0.55, pmids: [], note: 'TRPML1 sits in the LAMP1+ lysosomal limiting membrane; mucolipidosis IV when lost.' },
+  { from: 'GNS',    to: 'IDUA',   kind: 'shared-mechanism', strength: 0.45, pmids: [], note: 'Both heparan-sulfate-degrading lysosomal enzymes (MPS IIID and MPS I); convergent CNS-MPS pathology.' },
+  { from: 'ASAH1',  to: 'SMPD1',  kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'Acid ceramidase (ASAH1) and acid sphingomyelinase (SMPD1) sit on adjacent sphingolipid-degradation steps.' },
+
+  // --- Mitochondrial cristae / MICOS / mtDNA ---
+  { from: 'IMMT',   to: 'SAM50',  kind: 'complex', strength: 0.9, pmids: [], note: 'Mitofilin (MIC60/IMMT) and SAM50 form the MICOS-SAM bridge that links inner-membrane cristae junctions to OMM β-barrel assembly.' },
+  { from: 'IMMT',   to: 'OPA1',   kind: 'complex', strength: 0.6, pmids: [], note: 'MICOS (IMMT-centric) and OPA1 cooperate to shape and maintain cristae architecture.' },
+  { from: 'SAM50',  to: 'TOMM70', kind: 'complex', strength: 0.55, pmids: [], note: 'SAM and TOM complexes hand off β-barrel precursors at the OMM; structural and functional coupling.' },
+  { from: 'TWNK',   to: 'POLG',   kind: 'complex', strength: 0.95, pmids: [], note: 'Twinkle helicase and POLG form the core mtDNA replisome; mutations in either cause PEO and mtDNA depletion/deletion disorders.' },
+  { from: 'TWNK',   to: 'TFAM',   kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'Twinkle, POLG, and TFAM are the three nucleoid-core proteins of mtDNA maintenance.' },
+  { from: 'DGUOK',  to: 'POLG',   kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'DGUOK supplies dNTP precursors to POLG; loss causes the hepatocerebral mtDNA depletion syndrome.' },
+  { from: 'COQ8A',  to: 'NDUFS1', kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'CoQ10 biosynthesis (COQ8A) supports respiratory-chain function downstream of Complex I (NDUFS1).', tentative: true },
+
+  // --- Stress granules / integrated stress response ---
+  { from: 'G3BP1',  to: 'TARDBP', kind: 'shared-mechanism', strength: 0.6, pmids: [], note: 'G3BP1-nucleated stress granules sequester TDP-43; chronic SG persistence is hypothesised to seed TDP-43 aggregates.' },
+  { from: 'G3BP1',  to: 'G3BP2',  kind: 'complex', strength: 0.85, pmids: [], note: 'G3BP1/G3BP2 are paralogous stress-granule nucleators; double KO abolishes typical SG formation.' },
+  { from: 'G3BP1',  to: 'FUS',    kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'FUS LCD interacts with G3BP1 in stress granules; ALS-FUS perturbs SG dynamics.', tentative: true },
+  { from: 'EIF2S1', to: 'G3BP1',  kind: 'shared-mechanism', strength: 0.7, pmids: [], note: 'eIF2α-P (the ISR trigger) is the canonical upstream switch for stress-granule formation; G3BP1 nucleates downstream.' },
+
+  // --- Glial / microglial markers ---
+  { from: 'CSF1R',  to: 'TREM2',  kind: 'shared-mechanism', strength: 0.55, pmids: [], note: 'CSF1R and TREM2 cooperate to maintain microglia; CSF1R loss (HDLS/ALSP) and TREM2 loss (Nasu-Hakola) share progressive leukoencephalopathy phenotypes.' },
+  { from: 'CX3CR1', to: 'TREM2',  kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'CX3CR1 (homeostatic) and TREM2 (DAM) define opposite ends of the microglial activation continuum.', tentative: true },
+  { from: 'P2RY12', to: 'CX3CR1', kind: 'shared-mechanism', strength: 0.5, pmids: [], note: 'P2RY12 and CX3CR1 are coordinate homeostatic-microglia markers; both downregulated during DAM transition.' },
+  { from: 'AIF1',   to: 'CSF1R',  kind: 'shared-mechanism', strength: 0.35, pmids: [], note: 'Iba-1 (AIF1) is the most-used pan-microglial immunostaining marker; CSF1R-dependent population.', tentative: true },
+
+  // --- Lipid metabolism / ceramide axis ---
+  { from: 'SREBF1', to: 'ABCA1',  kind: 'kinase-substrate', strength: 0.5, pmids: [], note: 'SREBP-1 regulates lipogenic gene transcription, interacting with the cholesterol-efflux axis represented by ABCA1.', tentative: true },
+  { from: 'SPTLC1', to: 'SMPD1',  kind: 'shared-mechanism', strength: 0.45, pmids: [], note: 'Serine palmitoyltransferase initiates the sphingolipid biosynthesis pathway; SMPD1 hydrolyses sphingomyelin to ceramide downstream.', tentative: true },
+  { from: 'SPTLC1', to: 'TARDBP', kind: 'shared-disease', strength: 0.4, pmids: [], note: 'Recently identified SPTLC1 variants cause juvenile ALS; both linked to motor-neuron lipid-handling failure.', tentative: true },
+  { from: 'ELOVL5', to: 'ATXN3',  kind: 'shared-disease', strength: 0.35, pmids: [], note: 'SCA38 (ELOVL5) and SCA3 (ATXN3) — SCA family; convergent cerebellar vulnerability.', tentative: true },
+
+  // --- Prion / chaperone ---
+  { from: 'STIP1',  to: 'PRNP',   kind: 'receptor-ligand', strength: 0.65, pmids: [], note: 'Secreted STI1/HOP binds cellular PrPc as a neuroprotective ligand; STI1-PrP signalling drives neurite outgrowth and protein quality control.' },
+  { from: 'STIP1',  to: 'SQSTM1', kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'STIP1 acts as an HSP70-HSP90 co-chaperone; protein-quality-control crosstalk with autophagic substrate adaptors.', tentative: true },
+
+  // --- Cross-cluster bridges that emerge from the new genes ---
+  { from: 'NEFL',   to: 'TARDBP', kind: 'modifier', strength: 0.6, pmids: [], note: 'NfL CSF/serum is the principal biomarker of ongoing axonal injury in ALS, FTD, AD, MS — the cross-disease readout.', tentative: true },
+  { from: 'CHCHD2', to: 'CHCHD10',kind: 'complex', strength: 0.85, pmids: [], note: 'CHCHD2 and CHCHD10 are paralogous IMS twin-CX9C proteins; co-aggregate and have overlapping ALS-PD phenotypes.' },
+  { from: 'CSF1R',  to: 'TMEM106B', kind: 'shared-mechanism', strength: 0.4, pmids: [], note: 'CSF1R-driven microglia and TMEM106B (FTD modifier; lysosomal) converge on FTD-TDP risk.', tentative: true },
 ];
 
 export const EDGE_COLORS = {

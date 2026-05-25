@@ -816,6 +816,176 @@ const DEFAULT_GENE_PANEL = [
     notes: 'Mitochondrial-membrane protein-associated NBIA (MPAN); fourth of the NBIA syndromes; mitochondrial outer-membrane protein.',
     expectTokens: ['C19orf12', 'Q9NSK7', 'MPAN', 'NBIA', 'mitochondri'],
   },
+
+  // ============================================================
+  // Round 5 — major panel expansion (~75 genes).
+  // Recessive/atypical PD, LOAD GWAS microglial axis, ALS/FTD extensions,
+  // pure tauopathies (PSP/CBD/FTLD-tau), HSP, CMT, polyQ SCAs, additional
+  // lysosomal hydrolases, mitochondrial cristae/MICOS, stress granules,
+  // lipid metabolism, glial markers.
+  // ============================================================
+
+  // ===== Atypical / recessive / juvenile PD =====
+  { symbol: 'SYNJ1',   aliases: ['PARK20'], notes: 'PARK20 — recessive juvenile-onset PD; PI(4,5)P2 phosphatase synaptojanin-1; synaptic vesicle endocytosis.',
+    expectTokens: ['synaptojanin', 'O43426', 'parkinson', 'synaptic vesicle', 'PARK20'] },
+  { symbol: 'GIGYF2',  aliases: ['PARK11'], notes: 'PARK11 (contested) — translational repressor partner of 4EHP; protein-quality-control link to PD.',
+    expectTokens: ['GIGYF2', 'Q6Y7W6', 'translation', 'parkinson'] },
+  { symbol: 'EIF4G1',  aliases: ['PARK18'], notes: 'PARK18 — translation initiation factor; rare AD-onset PD; protein-synthesis link.',
+    expectTokens: ['eIF4G1', 'Q04637', 'translation', 'parkinson'] },
+  { symbol: 'GCH1',    aliases: ['DYT5', 'DRD'], notes: 'Dopa-responsive dystonia (Segawa) and PD risk; rate-limiting BH4 biosynthesis → TH cofactor.',
+    expectTokens: ['GCH1', 'P30793', 'tetrahydrobiopterin', 'dopamine', 'parkinson'] },
+  { symbol: 'GBA2',    aliases: ['SPG46'], notes: 'Non-lysosomal β-glucosidase; SPG46 ataxia/spasticity; GBA paralog setting cellular glucosylceramide tone.',
+    expectTokens: ['GBA2', 'Q9HCG7', 'glucosylceramide', 'lysosom', 'parkinson'] },
+  { symbol: 'DNAJC6',  aliases: ['AUXILIN', 'PARK19'], notes: 'PARK19 — recessive juvenile PD; auxilin clathrin-uncoating co-chaperone; synaptic vesicle recycling.',
+    expectTokens: ['auxilin', 'O75061', 'parkinson', 'clathrin', 'PARK19'] },
+  { symbol: 'DNAJC13', aliases: ['RME-8', 'PARK21'], notes: 'PARK21 — endosomal trafficking co-chaperone; retromer-adjacent (VPS35 axis).',
+    expectTokens: ['DNAJC13', 'O75165', 'parkinson', 'endosom', 'retromer'] },
+  { symbol: 'LRRK1',   aliases: [], notes: 'Paralog of LRRK2; phosphorylates Rab7; osteopetrosis when lost; tangentially PD-relevant.',
+    expectTokens: ['LRRK1', 'Q38SD2', 'Rab7', 'kinase'] },
+  { symbol: 'SH3GL2',  aliases: ['ENDOPHILIN-A1'], notes: 'BAR-domain synaptic-endocytosis protein; LRRK2 phosphorylation substrate; PD GWAS signal.',
+    expectTokens: ['endophilin', 'Q99961', 'synaptic endocyt', 'LRRK2'] },
+  { symbol: 'RIT2',    aliases: [], notes: 'Small GTPase RIT2; PD GWAS hit; neuronal MAPK signalling.',
+    expectTokens: ['RIT2', 'Q99578', 'parkinson', 'GTPase'] },
+
+  // ===== AD — LOAD GWAS microglial axis + secretase + Aβ-degrading =====
+  { symbol: 'ABCA1',   aliases: [], notes: 'Cholesterol efflux to APOE; Tangier disease when lost; ABCA1 agonists tested for AD.',
+    expectTokens: ['ABCA1', 'O95477', 'cholesterol', 'APOE', 'alzheimer'] },
+  { symbol: 'CR1',     aliases: ['CD35'], notes: 'Complement receptor 1; LOAD GWAS; binds C3b/C4b; microglial Aβ clearance.',
+    expectTokens: ['CR1', 'P17927', 'complement', 'alzheimer', 'microglia'] },
+  { symbol: 'MS4A6A',  aliases: [], notes: 'LOAD GWAS — chr11 MS4A cluster; microglial expression; modulates soluble TREM2.',
+    expectTokens: ['MS4A6A', 'Q9H2W1', 'microglia', 'alzheimer'] },
+  { symbol: 'INPP5D',  aliases: ['SHIP1'], notes: 'SHIP1 inositol phosphatase; LOAD GWAS; microglial inhibitor; opposes TREM2 signalling.',
+    expectTokens: ['SHIP1', 'Q92835', 'microglia', 'alzheimer'] },
+  { symbol: 'SPI1',    aliases: ['PU.1'], notes: 'Master microglial transcription factor PU.1; LOAD GWAS; eQTL drives AD risk.',
+    expectTokens: ['PU.1', 'P17947', 'microglia', 'alzheimer', 'transcription factor'] },
+  { symbol: 'ABI3',    aliases: [], notes: 'LOAD rare-variant GWAS; microglial actin regulator; expressed in DAM state.',
+    expectTokens: ['ABI3', 'Q9P2A4', 'microglia', 'alzheimer'] },
+  { symbol: 'MEF2C',   aliases: [], notes: 'LOAD GWAS; MADS-box TF; cognitive-resilience axis.',
+    expectTokens: ['MEF2C', 'Q06413', 'alzheimer', 'transcription factor'] },
+  { symbol: 'PTK2B',   aliases: ['PYK2'], notes: 'Pyk2 — LOAD GWAS; focal-adhesion-kinase family; Aβ-induced tau phosphorylation; synapse loss.',
+    expectTokens: ['Pyk2', 'Q14289', 'alzheimer', 'kinase', 'tau'] },
+  { symbol: 'ECE1',    aliases: [], notes: 'Endothelin-converting enzyme 1; secondary Aβ-clearing metallopeptidase.',
+    expectTokens: ['ECE1', 'P42892', 'amyloid', 'alzheimer'] },
+
+  // ===== ALS / FTD extension =====
+  { symbol: 'VCP',     aliases: ['P97', 'ALS14'], notes: 'AAA+ ATPase; ALS14 / IBMPFD / multisystem proteinopathy; ubiquitin-dependent segregase; ERAD + autophagy.',
+    expectTokens: ['VCP', 'P55072', 'ALS', 'FTD', 'ATPase'] },
+  { symbol: 'PFN1',    aliases: ['ALS18'], notes: 'Profilin-1 — ALS18; actin-binding; destabilises motor-axon cytoskeleton when mutated.',
+    expectTokens: ['profilin', 'P07737', 'ALS', 'actin'] },
+  { symbol: 'NEK1',    aliases: ['ALS24'], notes: 'NIMA-related kinase; ALS24; ciliary kinase + DNA-damage response; oligogenic ALS risk.',
+    expectTokens: ['NEK1', 'Q96PY6', 'ALS', 'kinase'] },
+  { symbol: 'SETX',    aliases: ['ALS4', 'AOA2'], notes: 'Senataxin — ALS4 / ataxia-AOA2; RNA/DNA helicase; resolves R-loops.',
+    expectTokens: ['senataxin', 'Q7Z333', 'ALS', 'helicase', 'R-loops'] },
+  { symbol: 'ANXA11',  aliases: ['ALS23'], notes: 'Annexin A11 — ALS23; Ca²⁺-dependent phospholipid-binding; RNP-granule-to-lysosome tether for axonal RNA transport.',
+    expectTokens: ['annexin', 'P50995', 'ALS', 'axonal transport'] },
+  { symbol: 'CCNF',    aliases: [], notes: 'Cyclin F — ALS/FTD; SCF E3 ligase substrate adaptor; targets TDP-43.',
+    expectTokens: ['cyclin F', 'P41002', 'ALS', 'FTD', 'TDP-43'] },
+  { symbol: 'CHMP2B',  aliases: ['FTD3'], notes: 'FTD3 — ESCRT-III subunit; endosomal sorting; autophagosome maturation; C-terminal truncations block fusion.',
+    expectTokens: ['CHMP2B', 'Q9UQN3', 'FTD', 'ESCRT', 'autophagy'] },
+  { symbol: 'VAPB',    aliases: ['ALS8'], notes: 'ALS8 — ER-membrane MSP-domain protein; defines ER-mitochondria contact sites.',
+    expectTokens: ['VAPB', 'O95292', 'ALS', 'ER-mitochondria'] },
+  { symbol: 'ALS2',    aliases: ['ALSIN'], notes: 'Alsin — juvenile ALS2 / infantile-onset HSP / PLSJ; RabGEF for Rab5 endosomes.',
+    expectTokens: ['alsin', 'Q96Q42', 'ALS', 'HSP', 'Rab5'] },
+  { symbol: 'ELP3',    aliases: [], notes: 'Elongator complex; tRNA modification (mcm5s2U34); ALS susceptibility; motor-axon vulnerability.',
+    expectTokens: ['ELP3', 'Q9H9T3', 'ALS', 'tRNA'] },
+
+  // ===== Pure tauopathies (PSP / CBD / FTLD-tau) =====
+  { symbol: 'STX6',    aliases: ['SYNTAXIN-6'], notes: 'PSP GWAS; lysosomal/Golgi SNARE; tau secretion/seeding axis.',
+    expectTokens: ['syntaxin-6', 'O43752', 'PSP', 'SNARE', 'tau'] },
+  { symbol: 'EIF2AK3', aliases: ['PERK'], notes: 'PERK — PSP GWAS; ER-stress kinase; phosphorylates eIF2α; integrated stress response.',
+    expectTokens: ['PERK', 'Q9NZJ5', 'PSP', 'ISR', 'ER stress'] },
+  { symbol: 'MOBP',    aliases: [], notes: 'PSP + FTLD-tau GWAS; myelin/oligodendrocyte basic protein; oligodendroglial tau pathology.',
+    expectTokens: ['MOBP', 'Q13875', 'PSP', 'myelin', 'tau'] },
+  { symbol: 'IRF8',    aliases: [], notes: 'PSP GWAS; microglial/myeloid transcription factor.',
+    expectTokens: ['IRF8', 'Q02556', 'PSP', 'microglia', 'transcription factor'] },
+  { symbol: 'CDKN2A',  aliases: ['P16'], notes: 'PSP GWAS; p16/p14ARF cell-cycle/senescence regulator; glial senescence in tauopathy.',
+    expectTokens: ['CDKN2A', 'P42771', 'PSP', 'senescence'] },
+  { symbol: 'AFG3L2',  aliases: ['SCA28'], notes: 'SCA28 + spastic ataxia; partner of SPG7 in m-AAA inner-mitochondrial-membrane protease; OPA1 processing.',
+    expectTokens: ['AFG3L2', 'Q9Y4W6', 'SCA28', 'm-AAA', 'OPA1'] },
+
+  // ===== Hereditary spastic paraplegia (HSP) =====
+  { symbol: 'SPAST',   aliases: ['SPG4'], notes: 'SPG4 — most common dominant HSP; microtubule-severing AAA+ ATPase spastin; ER shaping.',
+    expectTokens: ['spastin', 'Q9UBP0', 'HSP', 'SPG4', 'microtubule'] },
+  { symbol: 'ATL1',    aliases: ['SPG3A'], notes: 'SPG3A — ER-membrane dynamin-family GTPase atlastin-1; tubular ER fusion.',
+    expectTokens: ['atlastin', 'Q8WXF7', 'HSP', 'SPG3A', 'ER'] },
+  { symbol: 'REEP1',   aliases: ['SPG31'], notes: 'SPG31 — ER-shaping hairpin protein; partners with atlastin/spastin.',
+    expectTokens: ['REEP1', 'Q9H902', 'HSP', 'SPG31', 'ER'] },
+  { symbol: 'SPG11',   aliases: ['SPATACSIN'], notes: 'Most common recessive HSP; juvenile ALS5; required for autophagic-lysosome reformation.',
+    expectTokens: ['spatacsin', 'Q96JI7', 'HSP', 'ALS', 'autophagy'] },
+  { symbol: 'KIF1A',   aliases: ['SPG30'], notes: 'SPG30 / intellectual disability — kinesin-3 anterograde motor; synaptic-vesicle precursor transport.',
+    expectTokens: ['KIF1A', 'Q12756', 'HSP', 'kinesin', 'axonal transport'] },
+
+  // ===== Charcot-Marie-Tooth (CMT) =====
+  { symbol: 'PMP22',   aliases: ['CMT1A'], notes: 'CMT1A — most common CMT; tetraspan PNS-myelin protein; duplication on chr17p.',
+    expectTokens: ['PMP22', 'Q01453', 'CMT', 'myelin'] },
+  { symbol: 'MPZ',     aliases: ['P0', 'CMT1B'], notes: 'CMT1B — major PNS-myelin Ig-domain adhesion molecule; >100 dominant mutations.',
+    expectTokens: ['MPZ', 'P25189', 'CMT', 'myelin', 'P0'] },
+  { symbol: 'GJB1',    aliases: ['CMTX1', 'CONNEXIN-32'], notes: 'CMTX1 — X-linked CMT; Schwann-cell gap-junction protein connexin-32.',
+    expectTokens: ['connexin-32', 'P08034', 'CMT', 'gap junction'] },
+  { symbol: 'NEFL',    aliases: ['CMT2E', 'NF-L'], notes: 'Neurofilament light — CMT2E + ALS rare; serum/CSF NfL is the leading biomarker of axonal injury.',
+    expectTokens: ['NEFL', 'P07196', 'CMT', 'neurofilament', 'NfL'] },
+  { symbol: 'DCTN1',   aliases: ['P150GLUED'], notes: 'Dynactin p150-glued; Perry syndrome (parkinsonism + ALS); dynein adaptor; retrograde axonal transport.',
+    expectTokens: ['dynactin', 'Q14203', 'parkinson', 'ALS', 'axonal transport'] },
+
+  // ===== HD / SCA polyQ extension =====
+  { symbol: 'ATXN10',  aliases: ['SCA10'], notes: 'SCA10 — non-coding pentanucleotide (ATTCT) expansion; ataxia + epilepsy.',
+    expectTokens: ['ataxin-10', 'Q9UBB4', 'SCA10', 'expansion'] },
+  { symbol: 'PPP2R2B', aliases: ['SCA12'], notes: 'SCA12 — non-coding CAG expansion; PP2A regulatory subunit.',
+    expectTokens: ['PP2A', 'Q00005', 'SCA12'] },
+
+  // ===== Lysosomal storage extension =====
+  { symbol: 'ARSA',    aliases: ['MLD'], notes: 'Arylsulfatase A — metachromatic leukodystrophy; sulfatide degradation; atidarsagene gene therapy approved.',
+    expectTokens: ['ARSA', 'P15289', 'MLD', 'lysosom', 'leukodystrophy'] },
+  { symbol: 'GLB1',    aliases: [], notes: 'β-galactosidase — GM1 gangliosidosis; Morquio B; broad ganglioside + keratan sulfate substrate.',
+    expectTokens: ['GLB1', 'P16278', 'GM1', 'lysosom'] },
+  { symbol: 'MCOLN1',  aliases: ['TRPML1', 'MLIV'], notes: 'TRPML1 — mucolipidosis IV; lysosomal cation channel; Ca²⁺ release triggers TFEB activation.',
+    expectTokens: ['TRPML1', 'Q9GZU1', 'mucolipidosis', 'lysosom', 'calcium'] },
+  { symbol: 'HEXB',    aliases: [], notes: 'β-hexosaminidase β-subunit — Sandhoff disease (loss of HexA + HexB); shared with HEXA.',
+    expectTokens: ['hexosaminidase', 'P07686', 'Sandhoff', 'lysosom'] },
+  { symbol: 'GNS',     aliases: ['MPS3D'], notes: 'N-acetylglucosamine-6-sulfatase — Sanfilippo D (MPS IIID); heparan-sulfate breakdown.',
+    expectTokens: ['GNS', 'P15586', 'Sanfilippo', 'lysosom'] },
+
+  // ===== Mitochondrial cristae / MICOS / mtDNA =====
+  { symbol: 'IMMT',    aliases: ['MIC60', 'MITOFILIN'], notes: 'MICOS core; defines crista junctions; partners with SAM50 for OMM-IMM bridging.',
+    expectTokens: ['mitofilin', 'Q16891', 'MICOS', 'cristae'] },
+  { symbol: 'SAM50',   aliases: [], notes: 'Sorting-and-assembly machinery; OMM β-barrel insertion; MICOS-SAM bridge.',
+    expectTokens: ['SAM50', 'Q9Y512', 'mitochondri', 'beta-barrel'] },
+  { symbol: 'COQ8A',   aliases: ['CABC1', 'SCAR9'], notes: 'SCAR9 ataxia; CoQ10 biosynthesis kinase-like; mitochondrial respiratory-chain support.',
+    expectTokens: ['COQ8A', 'Q8NI60', 'CoQ10', 'ataxia'] },
+  { symbol: 'DGUOK',   aliases: [], notes: 'Deoxyguanosine kinase — mtDNA depletion syndrome (hepatocerebral); deoxynucleotide salvage.',
+    expectTokens: ['DGUOK', 'Q16854', 'mtDNA depletion', 'mitochondri'] },
+  { symbol: 'TWNK',    aliases: ['TWINKLE', 'C10orf2', 'PEO1'], notes: 'Twinkle helicase — mtDNA replicative helicase; PEO; mtDNA depletion/deletion disorders.',
+    expectTokens: ['twinkle', 'Q96RR1', 'mtDNA', 'helicase', 'PEO'] },
+
+  // ===== Stress granules / integrated stress response =====
+  { symbol: 'G3BP1',   aliases: [], notes: 'Canonical stress-granule scaffold; nucleator of cytoplasmic SGs.',
+    expectTokens: ['G3BP1', 'Q13283', 'stress granule', 'phase separation'] },
+  { symbol: 'G3BP2',   aliases: [], notes: 'Paralog of G3BP1; redundant SG-nucleation function.',
+    expectTokens: ['G3BP2', 'Q9UN86', 'stress granule'] },
+  { symbol: 'EIF2S1',  aliases: ['EIF2A', 'EIF2-ALPHA'], notes: 'eIF2α — integrated stress response; phosphorylated at Ser51 by PERK/PKR/GCN2/HRI; global translation attenuation.',
+    expectTokens: ['eIF2a', 'P05198', 'ISR', 'translation'] },
+
+  // ===== Glial / microglial markers =====
+  { symbol: 'CSF1R',   aliases: ['HDLS', 'ALSP'], notes: 'Microglial RTK; ALSP/HDLS when mutated (adult-onset leukoencephalopathy); CSF1R inhibitors deplete microglia.',
+    expectTokens: ['CSF1R', 'P07333', 'microglia', 'HDLS', 'leukoencephalopathy'] },
+  { symbol: 'CX3CR1',  aliases: [], notes: 'Microglial fractalkine receptor; homeostatic microglia marker; tones down reactivity.',
+    expectTokens: ['CX3CR1', 'P49238', 'microglia', 'fractalkine'] },
+  { symbol: 'P2RY12',  aliases: [], notes: 'Homeostatic microglia marker; ADP receptor; lost during DAM transition.',
+    expectTokens: ['P2RY12', 'Q9H244', 'microglia', 'purinergic'] },
+  { symbol: 'AIF1',    aliases: ['IBA-1'], notes: 'Iba-1 — ionised calcium-binding adaptor; pan-microglial immunostaining marker.',
+    expectTokens: ['Iba-1', 'P55008', 'microglia', 'AIF1'] },
+
+  // ===== Lipid metabolism =====
+  { symbol: 'SREBF1',  aliases: ['SREBP-1'], notes: 'Sterol regulatory element binding protein; lipogenesis TF; identified as ALS modifier via lipidomics.',
+    expectTokens: ['SREBP-1', 'P36956', 'lipid', 'transcription factor'] },
+  { symbol: 'SPTLC1',  aliases: ['HSAN1'], notes: 'HSAN1 + recent juvenile ALS; serine palmitoyltransferase; sphingolipid biosynthesis entry point.',
+    expectTokens: ['SPTLC1', 'O15269', 'sphingolipid', 'HSAN1', 'ALS'] },
+  { symbol: 'ELOVL5',  aliases: ['SCA38'], notes: 'SCA38 — fatty-acid elongase; polyunsaturated-fatty-acid biosynthesis.',
+    expectTokens: ['ELOVL5', 'Q9NYP7', 'SCA38', 'fatty acid'] },
+
+  // ===== Prion / PrP chaperones =====
+  { symbol: 'STIP1',   aliases: ['STI1', 'HOP'], notes: 'HSP70-HSP90 organising co-chaperone; secreted ligand for cellular PrP; neuroprotective.',
+    expectTokens: ['STIP1', 'P31948', 'PrP', 'co-chaperone'] },
 ];
 
 /** Default model state — what a fresh install sees. */
