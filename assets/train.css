@@ -439,3 +439,27 @@ table.panel-table td.actions button.del { color: var(--danger); border-color: va
   border: none; cursor: pointer;
 }
 .center-mode button.active { background: var(--ink); color: white; }
+
+/* Sub-mode chips inside the Train-connection pane */
+.conn-submode button.active {
+  background: var(--accent, var(--ink));
+  color: white;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.05) inset;
+}
+.conn-submode button:hover:not(.active) {
+  background: var(--soft, rgba(0,0,0,0.04));
+}
+#conn-aisuggest-list li {
+  padding: 8px 12px; border-bottom: 1px solid var(--rule);
+  display: flex; gap: 10px; align-items: baseline; cursor: pointer;
+  transition: background 0.12s;
+}
+#conn-aisuggest-list li:hover { background: var(--soft, rgba(0,0,0,0.04)); }
+#conn-aisuggest-list li:last-child { border-bottom: none; }
+#conn-aisuggest-list .ais-pair {
+  font-family: 'SF Mono', 'Menlo', monospace; font-weight: 600;
+  color: var(--accent); font-size: 13px; white-space: nowrap;
+}
+#conn-aisuggest-list .ais-reason {
+  font-size: 12.5px; color: var(--ink-soft); line-height: 1.4;
+}

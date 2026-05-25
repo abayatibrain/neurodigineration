@@ -486,6 +486,17 @@ nav.site-nav a:hover { color: var(--accent); }
 .edge.tangential { stroke-dasharray: 2 3; opacity: 0.55; }
 .edge.tangential.highlighted { opacity: 1; }
 
+/* SME-accepted NEW edges (drafted on the train page, then accepted into
+ * the graph) — dashed green so they stand out from curated solid/dotted. */
+.edge.accepted {
+  stroke-dasharray: 6 4;
+  filter: drop-shadow(0 0 1.5px rgba(21, 128, 61, 0.55));
+}
+.edge.accepted.highlighted {
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 3px rgba(21, 128, 61, 0.8));
+}
+
 /* ===== Toast (shared) ===== */
 .toast-host {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);

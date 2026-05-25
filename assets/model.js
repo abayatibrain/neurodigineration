@@ -1013,6 +1013,7 @@ export function defaultModelState() {
     preferences: [],
     goldStandards: [],
     edgeRatings: [], // see recordEdgeRating — SME judgements on network edges
+    acceptedEdges: [], // see recordAcceptedEdge — NEW connections proposed via train page + accepted by SME; rendered as dashed-green overlays on the network
     panel: DEFAULT_GENE_PANEL.map((g) => ({ ...g })),
     settings: {
       learningLoopEvery: LEARNING_LOOP_EVERY,
@@ -1103,9 +1104,31 @@ export class BioscopeModel extends Emitter {
       merged.rubricWeights = { ...DEFAULT_RUBRIC_WEIGHTS, ...(parsed.rubricWeights ?? {}) };
       if (!Array.isArray(merged.panel) || merged.panel.length === 0) {
         merged.panel = defaultModelState().panel;
+      } else {
+        // Round-5 panel migration: union saved panel with current defaults.
+        // Older saved states (created when DEFAULT_GENE_PANEL had 99 entries)
+        // are missing the ~120 genes added since. Without this merge, the
+        // gene pickers / connection pickers would silently fail when the
+        // user picks or randomly lands on a newer gene.
+        // - Preserve the SME's custom edits to existing entries.
+        // - Append any default-panel symbols not in the saved panel.
+        const savedSyms = new Set(merged.panel.map((g) => g.symbol));
+        const fresh = defaultModelState().panel;
+        let added = 0;
+        for (const g of fresh) {
+          if (!savedSyms.has(g.symbol)) {
+            merged.panel.push({ ...g });
+            added++;
+          }
+        }
+        if (added > 0) {
+          console.log(`Round-5 panel migration: added ${added} default genes missing from saved panel.`);
+        }
       }
       // Migration for v0.1 → v0.2: edgeRatings array added in this round
       if (!Array.isArray(merged.edgeRatings)) merged.edgeRatings = [];
+      // Migration for v0.x → Round 5: SME-accepted novel edges array
+      if (!Array.isArray(merged.acceptedEdges)) merged.acceptedEdges = [];
       return merged;
     } catch (e) {
       console.warn('BioscopeModel: failed to parse stored state, starting fresh', e);
@@ -1136,6 +1159,7 @@ export class BioscopeModel extends Emitter {
   get preferences() { return this.state.preferences; }
   get goldStandards() { return this.state.goldStandards; }
   get edgeRatings() { return this.state.edgeRatings ?? []; }
+  get acceptedEdges() { return this.state.acceptedEdges ?? []; }
   get settings() { return this.state.settings; }
 
   /** Weighted overall score for a rating, 0..5. */
@@ -1333,6 +1357,55 @@ export class BioscopeModel extends Emitter {
     this._save();
     this.emit('edge-rating', entry);
     return entry;
+  }
+
+  /**
+   * Persist a NEW SME-accepted connection so it shows up on the network page
+   * as a dashed-green overlay. Distinct from recordEdgeRating: that one
+   * captures an SME judgement on an *existing* curated edge. This one
+   * captures a *novel* edge the SME wants in the graph.
+   *
+   * @param {object} arg
+   * @param {string} arg.from
+   * @param {string} arg.to
+   * @param {string} arg.kind   one of EDGE_COLORS keys (kinase-substrate, ...)
+   * @param {string} arg.note   2-3 sentence mechanism summary
+   * @param {string[]} [arg.pmids]  optional PMID list
+   * @param {number} [arg.strength] 0..1 — default 0.6
+   * @param {'live'|'mock'|'manual'} [arg.source] how the proposal was generated
+   * @returns the stored edge entry
+   */
+  recordAcceptedEdge({ from, to, kind, note, pmids, strength, source }) {
+    const entry = {
+      id: `ae-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      from, to,
+      kind: kind || 'shared-mechanism',
+      note: (note || '').slice(0, 1000),
+      pmids: Array.isArray(pmids) ? pmids.slice(0, 10) : [],
+      strength: typeof strength === 'number' ? strength : 0.6,
+      source: source || 'manual',
+      acceptedAt: new Date().toISOString(),
+    };
+    this.state.acceptedEdges.push(entry);
+    this._appendVersionEntry({
+      change: 'network-acceptance',
+      reason: `SME accepted new edge ${from} → ${to} (${entry.kind})`,
+      delta: { accepted: entry.id, from, to, kind: entry.kind, source: entry.source },
+    });
+    this._bumpVersion();
+    this._save();
+    this.emit('edge-accepted', entry);
+    return entry;
+  }
+
+  /** Remove a previously-accepted edge (e.g. SME reversed their judgement). */
+  removeAcceptedEdge(id) {
+    const i = this.state.acceptedEdges.findIndex((e) => e.id === id);
+    if (i < 0) return false;
+    this.state.acceptedEdges.splice(i, 1);
+    this._save();
+    this.emit('edge-accepted-removed', id);
+    return true;
   }
 
   // ---- Learning loop ----

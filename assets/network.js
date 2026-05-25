@@ -49,6 +49,38 @@ function guessDisease(g) {
   return 'SHARED';
 }
 
+// ---------------------------------------------------------------------------
+// Merge in any SME-accepted novel edges from BioscopeModel state. These
+// were added via the train page's Free-Pair / AI-suggested flow → Accept
+// into graph button → recordAcceptedEdge. They render as dashed-green
+// overlays so they're visually distinct from curated solid + dotted edges.
+// ---------------------------------------------------------------------------
+const acceptedEdges = (model.acceptedEdges || []).map((ae) => ({
+  from: ae.from,
+  to: ae.to,
+  kind: ae.kind || 'shared-mechanism',
+  note: ae.note || '',
+  pmids: Array.isArray(ae.pmids) ? ae.pmids : [],
+  strength: typeof ae.strength === 'number' ? ae.strength : 0.6,
+  accepted: true,
+  acceptedAt: ae.acceptedAt,
+  acceptedId: ae.id,
+}));
+// Append to EDGES so all downstream code (filters, lookups, simulation) sees them
+for (const ae of acceptedEdges) {
+  // Inject endpoints as nodes if either is missing (defensive — should already
+  // exist via the panel-injection step above, but accepted edges may reference
+  // genes that aren't in the panel for some reason).
+  for (const id of [ae.from, ae.to]) {
+    if (!nodeById.has(id)) {
+      const node = { id, protein: id, disease: 'SHARED', prevalence: 0.35, role: 'accepted-edge endpoint', _fromAccepted: true };
+      NODES.push(node);
+      nodeById.set(id, node);
+    }
+  }
+  EDGES.push(ae);
+}
+
 // Compute per-node degree and disease counts for sizing/positioning
 const degree = new Map(NODES.map((n) => [n.id, 0]));
 for (const e of EDGES) {
@@ -153,27 +185,41 @@ function zoomReset() {
 // ---------------------------------------------------------------------------
 // Each NODE gets {x,y,vx,vy} from d3.forceSimulation. We seed initial x
 // by disease so the first layout reads as columns before physics settles.
-const diseaseOrder = ['NBIA', 'PD', 'SHARED', 'AD', 'ALS', 'HD', 'PRION', 'LSD'];
+// All 11 disease groups are placed left→right so HSP/CMT/TAU don't pile up
+// at center. The canvas is intentionally wider than the visible window —
+// users can pan + zoom into the spread map. SPREAD scales the total canvas.
+const diseaseOrder = ['NBIA', 'CMT', 'HSP', 'ALS', 'PD', 'SHARED', 'AD', 'TAU', 'HD', 'PRION', 'LSD'];
+const SPREAD_X = 2400;  // wider seed canvas (was ~1200) so the 200+ nodes have room
+const SPREAD_Y = 1600;  // taller seed canvas
 function seedX(n) {
   const i = diseaseOrder.indexOf(n.disease);
   if (i < 0) return W() / 2;
-  return ((i + 0.5) / diseaseOrder.length) * Math.max(W(), 1200);
+  return ((i + 0.5) / diseaseOrder.length) * Math.max(W(), SPREAD_X);
 }
 function seedY(n) {
-  return H() * 0.5 + (Math.random() - 0.5) * H() * 0.7;
+  return H() * 0.5 + (Math.random() - 0.5) * Math.max(H(), SPREAD_Y) * 0.85;
 }
 for (const n of NODES) { n.x = seedX(n); n.y = seedY(n); }
 
 // Convert string from/to in EDGES into node references (d3 force expects)
 const links = EDGES.map((e) => ({ ...e, source: e.from, target: e.to }));
 
+// Force tuning for ~204 nodes:
+//   - link distance 180-50*s  (was 120-50*s)  → edges are longer overall
+//   - charge -380 to -700     (was -240 to -460) → stronger node repulsion
+//   - collide +10              (was +6)        → more breathing room per box
+//   - x-seed strength 0.04     (was 0.06)      → weaker pull to seed column,
+//     so the disease columns are suggestions rather than walls
+//   - y-seed strength 0.015    (was 0.025)     → looser vertical anchor
 const simulation = d3.forceSimulation(NODES)
-  .force('link', d3.forceLink(links).id((d) => d.id).distance((d) => 120 - 50 * (d.strength || 0.5)).strength((d) => 0.18 + 0.4 * (d.strength || 0.5)))
-  .force('charge', d3.forceManyBody().strength((d) => -240 - 220 * (d.prevalence || 0.4)))
-  .force('collide', d3.forceCollide().radius((d) => nodeRadius(d) + 6))
-  .force('x', d3.forceX((d) => seedX(d)).strength(0.06))
-  .force('y', d3.forceY(H() * 0.5).strength(0.025))
-  .alphaDecay(0.025);
+  .force('link', d3.forceLink(links).id((d) => d.id)
+    .distance((d) => 180 - 50 * (d.strength || 0.5))
+    .strength((d) => 0.14 + 0.35 * (d.strength || 0.5)))
+  .force('charge', d3.forceManyBody().strength((d) => -380 - 320 * (d.prevalence || 0.4)))
+  .force('collide', d3.forceCollide().radius((d) => nodeRadius(d) + 10))
+  .force('x', d3.forceX((d) => seedX(d)).strength(0.04))
+  .force('y', d3.forceY(H() * 0.5).strength(0.015))
+  .alphaDecay(0.022);
 
 function nodeRadius(n) {
   // Box "size" — actually we use rounded rects; expose as a single number for collision.
@@ -207,10 +253,11 @@ const edgeSel = gEdges.selectAll('path.edge')
   .data(links, edgeId)
   .enter()
   .append('path')
-  .attr('class', (d) => `edge${d.tentative ? ' tangential' : ''}`)
-  .attr('stroke', (d) => EDGE_COLORS[d.kind])
-  .attr('stroke-width', (d) => 0.9 + 2.6 * (d.strength || 0.5))
-  .attr('opacity', (d) => d.tentative ? 0.5 : 0.65)
+  .attr('class', (d) => `edge${d.tentative ? ' tangential' : ''}${d.accepted ? ' accepted' : ''}`)
+  // Accepted (SME-confirmed novel) edges render green; curated edges use EDGE_COLORS by kind
+  .attr('stroke', (d) => d.accepted ? '#15803d' : EDGE_COLORS[d.kind])
+  .attr('stroke-width', (d) => (d.accepted ? 1.6 : 0.9) + 2.4 * (d.strength || 0.5))
+  .attr('opacity', (d) => d.accepted ? 0.85 : (d.tentative ? 0.5 : 0.65))
   .style('pointer-events', 'none');
 
 // ---------------------------------------------------------------------------
@@ -454,6 +501,11 @@ function renderPanelForEdge(d) {
       el('span', { class: 'edge-kind-pill', style: 'margin-left:6px; background:var(--gold-soft); color:var(--gold);' }, 'Tangential · needs SME validation'),
     );
   }
+  if (d.accepted) {
+    host.appendChild(
+      el('span', { class: 'edge-kind-pill', style: 'margin-left:6px; background:#dcfce7; color:#15803d;', title: `Accepted ${d.acceptedAt ? new Date(d.acceptedAt).toISOString().slice(0,10) : ''}` }, 'SME accepted · from train page'),
+    );
+  }
 
   // Explanation
   const note = el('section', { class: 'block' });
@@ -624,6 +676,19 @@ function renderLegend() {
       ),
     );
   }
+  // SME-accepted edges legend chip (only shown if any exist)
+  const acceptedCount = (model.acceptedEdges || []).length;
+  if (acceptedCount > 0) {
+    host.appendChild(
+      el('span', { class: 'item', title: `${acceptedCount} SME-accepted edge${acceptedCount === 1 ? '' : 's'} from the train page` },
+        el('span', {
+          class: 'swatch',
+          style: 'background: repeating-linear-gradient(90deg, #15803d 0, #15803d 4px, transparent 4px, transparent 8px); border:1px solid #15803d;',
+        }),
+        el('span', {}, `SME accepted (${acceptedCount})`),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -635,8 +700,8 @@ function fadeHelp() {
 }
 
 window.addEventListener('resize', () => {
-  simulation.force('x', d3.forceX((d) => seedX(d)).strength(0.06));
-  simulation.force('y', d3.forceY(H() * 0.5).strength(0.025));
+  simulation.force('x', d3.forceX((d) => seedX(d)).strength(0.04));
+  simulation.force('y', d3.forceY(H() * 0.5).strength(0.015));
   simulation.alphaTarget(0.1).restart();
   setTimeout(() => simulation.alphaTarget(0), 600);
 });

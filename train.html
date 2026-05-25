@@ -123,7 +123,23 @@
 
       <!-- Connection training pane -->
       <div id="connection-pane" style="display: none">
-        <div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <!-- Sub-mode toggle: rate established edges, draft a brand-new pair,
+             or pick from AI-proposed candidate pairs the SME hasn't seen. -->
+        <div class="conn-submode" role="tablist" aria-label="Connection-training mode"
+             style="display:flex; gap:6px; margin: 0 0 12px; padding: 4px; border:1px solid var(--rule); border-radius: 10px; background: var(--card);">
+          <button type="button" data-cmsub="established" class="active"
+                  style="flex:1; padding:7px 10px; border:none; background:transparent; border-radius:7px; font-size:12.5px; cursor:pointer;"
+                  title="Rate one of the ~273 existing curated edges">Established edges</button>
+          <button type="button" data-cmsub="freepair"
+                  style="flex:1; padding:7px 10px; border:none; background:transparent; border-radius:7px; font-size:12.5px; cursor:pointer;"
+                  title="Pick any two genes and have Claude propose a NEW connection">Free pair (new)</button>
+          <button type="button" data-cmsub="aisuggest"
+                  style="flex:1; padding:7px 10px; border:none; background:transparent; border-radius:7px; font-size:12.5px; cursor:pointer;"
+                  title="Let Claude suggest candidate gene pairs that aren't connected yet">AI-suggested pairs</button>
+        </div>
+
+        <!-- Established/Free-pair controls (shared two-gene picker) -->
+        <div id="conn-pair-controls" style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           <label style="font-size: 12px; color: var(--mute);">Gene A:</label>
           <select id="conn-gene-a" style="padding: 6px 10px; border: 1px solid var(--rule); border-radius: 6px;"></select>
           <span style="color: var(--mute); font-size: 18px;">↔</span>
@@ -133,8 +149,28 @@
           <span class="spacer" style="flex:1"></span>
           <button class="btn primary" id="conn-generate-btn" type="button">Generate connection</button>
         </div>
-        <div style="font-size: 12.5px; color: var(--mute); margin-bottom: 12px;">
-          In <strong>live mode</strong>, Claude proposes a connection between A and B with PMID citations. In <strong>mock mode</strong>, a random pre-curated edge from the network is shown. Either way, your rating trains the model.
+
+        <!-- Mode-specific hint -->
+        <div id="conn-submode-hint" style="font-size: 12.5px; color: var(--mute); margin-bottom: 12px;">
+          In <strong>live mode</strong>, Claude proposes the strongest documented connection between A and B with PMID citations. In <strong>mock mode</strong>, a random pre-curated edge from the network is shown.
+        </div>
+
+        <!-- AI-suggested-pair controls (hidden by default) -->
+        <div id="conn-aisuggest-controls" style="display:none; margin-bottom: 10px;">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 8px;">
+            <label style="font-size: 12px; color: var(--mute);">Theme / cluster (optional):</label>
+            <input type="text" id="conn-aisuggest-theme"
+                   placeholder="e.g. mitophagy, lysosomal lipid handling, microglial-tau axis"
+                   style="flex:1; min-width:240px; padding: 6px 10px; border:1px solid var(--rule); border-radius: 6px;" />
+            <label style="font-size: 12px; color: var(--mute);">Count:</label>
+            <input type="number" id="conn-aisuggest-count" value="5" min="1" max="10"
+                   style="width:64px; padding: 6px 10px; border:1px solid var(--rule); border-radius: 6px;" />
+            <button class="btn primary" id="conn-aisuggest-btn" type="button">Suggest pairs</button>
+          </div>
+          <div style="font-size: 12.5px; color: var(--mute); margin-bottom: 6px;">
+            Claude proposes <em>currently-unconnected</em> gene pairs likely to share biology. Click one to load it into the picker and generate the full proposal.
+          </div>
+          <ul id="conn-aisuggest-list" style="list-style:none; margin: 0; padding: 0; max-height: 230px; overflow-y: auto; border:1px solid var(--rule); border-radius: 8px; display:none;"></ul>
         </div>
 
         <div id="conn-card" class="brief-frame empty" style="min-height: 180px;">
@@ -152,7 +188,11 @@
           <div class="rating-actions">
             <input type="text" id="conn-feedback" class="comment" placeholder="Optional correction — used as the avoid pattern if you mark Not Real" maxlength="400" />
             <button id="conn-save-btn" class="btn primary" disabled type="button" title="Record the judgement into the model">Save judgement</button>
+            <button id="conn-accept-btn" class="btn" disabled type="button"
+                    title="Add this connection to the network as a dashed-green SME-accepted edge"
+                    style="display:none;">+ Accept into graph</button>
           </div>
+          <div id="conn-accepted-note" style="display:none; margin-top: 8px; padding: 6px 10px; font-size: 12px; border-radius: 6px; background: var(--ok-soft); color: var(--ok);"></div>
         </div>
       </div>
 

@@ -36,10 +36,13 @@ const state = {
   abPair: null, // { gene, A, B }
 
   // Connection-training mode (Train connection tab)
+  connSubMode: 'established', // 'established' | 'freepair' | 'aisuggest'
   connGeneA: null,
   connGeneB: null,
-  connProposal: null, // { from, to, kind, note, pmids, source: 'live'|'mock' }
+  connProposal: null, // { from, to, kind, note, pmids, source: 'live'|'mock'|'live-new' }
   connRating: { validity: null, explanation: 0, citation: 0, feedback: '' },
+  aiSuggestions: [], // [{ from, to, reason }]
+  connAcceptedId: null, // id returned by recordAcceptedEdge after SME hits Accept
 };
 
 // =============================================================================
@@ -814,6 +817,54 @@ Rules:
 - pmids: ≤ 3 entries.
 - The SME will rate your proposal. Honesty about absence of connection is rewarded; fabrication is penalised.`;
 
+// Free-pair mode: SME deliberately picks two genes that may NOT already be
+// in the curated graph and asks Claude to draft a NEW connection. We tell
+// Claude this so it leans toward proposing something novel rather than
+// rehashing a textbook fact — but still lets it return kind="none".
+const CONNECTION_FREEPAIR_PROMPT = `You are neurodigineration, drafting a NEW biological connection between two genes/proteins for an SME (subject-matter expert) to validate.
+
+The SME has picked these two genes deliberately and wants the strongest plausible mechanistic connection — even if it is not yet a well-established textbook fact. You may propose connections at any level (direct molecular interaction, shared complex, shared pathway, shared cellular compartment, shared disease vulnerability) — but each must be defensible from published literature.
+
+Return ONLY a single JSON object with this exact shape, no markdown fences, no preamble:
+
+{
+  "kind": "kinase-substrate" | "receptor-ligand" | "complex" | "modifier" | "shared-mechanism" | "shared-disease" | "opposes" | "none",
+  "note": "<2-4 sentence mechanistic explanation framed for an SME — be specific about which step, compartment, or substrate is involved. If kind=none, say so clearly and explain what each gene does separately.>",
+  "pmids": ["<pmid1>", "<pmid2>", "<pmid3>"],
+  "strength": 0.0..1.0,
+  "novel": true | false
+}
+
+Rules:
+- Cite REAL PubMed PMIDs only. Do not invent. If you don't know a PMID, leave the array empty rather than guessing.
+- "novel": true if this is a plausible NEW edge you would draft rather than rehashing a canonical textbook claim.
+- "strength" is your subjective confidence (0=speculative, 1=textbook fact).
+- Prefer kind="none" over fabricating. The SME rewards honest "no connection" answers.
+- note: ≤ 500 characters.
+- pmids: ≤ 3 entries.`;
+
+// AI-suggested-pair mode: ask Claude for a *list* of candidate pairs that are
+// likely related but rare/underexplored, optionally biased by a SME theme.
+const CONNECTION_AISUGGEST_PROMPT = `You are neurodigineration, suggesting candidate gene/protein pairs for an SME to investigate as potentially NEW network edges.
+
+Return ONLY a single JSON object with this exact shape, no markdown fences, no preamble:
+
+{
+  "pairs": [
+    { "from": "<HGNC symbol>", "to": "<HGNC symbol>", "kind": "shared-mechanism", "reason": "<≤ 200 chars, why these two might be linked>" },
+    ...
+  ]
+}
+
+Rules:
+- Each pair must consist of human HGNC symbols.
+- Suggest pairs the SME has NOT already listed in the "exclude" set. The exclude set is a list of curated edges already in the graph plus already-accepted edges.
+- Lean toward pairs with biological plausibility but limited textbook coverage (these are the ones worth SME judgement).
+- Prefer cross-disease pairs (e.g. one PD gene + one AD gene) when the mechanism plausibly bridges them.
+- kind must be one of: kinase-substrate, receptor-ligand, complex, modifier, shared-mechanism, shared-disease, opposes.
+- Do not duplicate pairs within your own output.
+- The SME will pick from your list. Quality over quantity.`;
+
 function pickRandomGeneFromPanel() {
   const panel = model.panel;
   return panel[Math.floor(Math.random() * panel.length)]?.symbol;
@@ -838,6 +889,22 @@ function populateConnPickers() {
 }
 
 function pickRandomConnPair() {
+  // In "established" sub-mode, the user wants a pair that has a curated edge
+  // to rate — so pick one from EDGES directly. In "freepair" sub-mode the
+  // SME is drafting new connections, so any panel pair is fine.
+  if (state.connSubMode === 'established' && NETWORK_EDGES.length > 0) {
+    const e = NETWORK_EDGES[Math.floor(Math.random() * NETWORK_EDGES.length)];
+    state.connGeneA = e.from; state.connGeneB = e.to;
+    const aSel = $('#conn-gene-a');
+    const bSel = $('#conn-gene-b');
+    // Ensure the picker has options for both endpoints — older saved
+    // panels may be missing newer Round-5 genes, so inject on the fly.
+    ensurePickerHasOption(aSel, e.from);
+    ensurePickerHasOption(bSel, e.to);
+    aSel.value = e.from;
+    bSel.value = e.to;
+    return;
+  }
   const all = model.panel.map((p) => p.symbol);
   if (all.length < 2) return;
   const a = all[Math.floor(Math.random() * all.length)];
@@ -849,6 +916,16 @@ function pickRandomConnPair() {
   $('#conn-gene-b').value = b;
 }
 
+/** Defensive: make sure a `<select>` has an `<option>` for the given symbol,
+ *  adding one if it doesn't. Handles the case where the user's saved panel
+ *  is older than the current default-panel set. */
+function ensurePickerHasOption(selectEl, symbol) {
+  for (const opt of selectEl.options) {
+    if (opt.value === symbol) return;
+  }
+  selectEl.appendChild(el('option', { value: symbol }, symbol));
+}
+
 function findExistingMockEdge(a, b) {
   return NETWORK_EDGES.find((e) =>
     (e.from === a && e.to === b) || (e.from === b && e.to === a),
@@ -858,37 +935,82 @@ function randomMockEdge() {
   return NETWORK_EDGES[Math.floor(Math.random() * NETWORK_EDGES.length)];
 }
 
+/**
+ * Compact "exclude set" of edges the AI shouldn't re-propose — curated graph
+ * + already-accepted SME edges. Returned as a compact "A-B" pipe-joined
+ * string so the prompt stays small even with hundreds of edges.
+ */
+function buildExcludeEdgesString() {
+  const seen = new Set();
+  for (const e of NETWORK_EDGES) {
+    const key = [e.from, e.to].sort().join('-');
+    seen.add(key);
+  }
+  for (const e of (model.acceptedEdges || [])) {
+    const key = [e.from, e.to].sort().join('-');
+    seen.add(key);
+  }
+  // Keep prompt size reasonable — cap at 500 most-relevant pairs
+  return Array.from(seen).slice(0, 500).join(', ');
+}
+
 async function generateConnection() {
   const a = state.connGeneA;
   const b = state.connGeneB;
   if (!a || !b) { toast('Pick both genes first.', 'warn'); return; }
   if (a === b) { toast('Pick two different genes.', 'warn'); return; }
 
+  const sub = state.connSubMode || 'established';
   const btn = $('#conn-generate-btn');
   btn.disabled = true;
   btn.textContent = state.mode === 'live' ? 'Asking Claude…' : 'Picking edge…';
 
   try {
+    // Mock-mode behaviour — ALWAYS respects the picked pair (no silent
+    // substitution to a random other edge, which was the old confusing UX):
+    //   - established → show curated edge for (A,B) if it exists,
+    //                    otherwise show a "no curated edge for this pair"
+    //                    stub with a clear next-step suggestion.
+    //   - freepair    → same shape, framed as a free-pair stub since the
+    //                    SME explicitly wants to draft a new edge.
     if (state.mode === 'mock') {
-      // Try the curated edge for this specific pair first; otherwise a random one
-      // from the curated set so the SME can still train without an API key.
       const exact = findExistingMockEdge(a, b);
-      const e = exact ?? randomMockEdge();
-      if (!exact) {
-        state.connGeneA = e.from; state.connGeneB = e.to;
-        $('#conn-gene-a').value = e.from; $('#conn-gene-b').value = e.to;
+      if (exact) {
+        state.connProposal = {
+          from: exact.from, to: exact.to, kind: exact.kind,
+          note: exact.note, pmids: exact.pmids ?? [],
+          source: 'mock-exact',
+        };
+      } else if (sub === 'freepair') {
+        // Free-pair: SME wants to draft a new edge. Mock can't propose
+        // biology (no API key), so show a stub framing the next step.
+        state.connProposal = {
+          from: a, to: b, kind: 'shared-mechanism',
+          note: `Mock-mode stub: no curated edge exists between ${a} and ${b}. ` +
+            `In live mode, Claude would draft a new mechanistic connection here. ` +
+            `Switch to live mode in the header (and add your API key) to generate a real proposal — or rate this stub as Not Real if you don't expect any connection.`,
+          pmids: [],
+          source: 'mock-freepair-stub',
+        };
+      } else {
+        // Established sub-mode with no curated edge for the picked pair.
+        // Don't silently swap to a random pair — show a clear message.
+        state.connProposal = {
+          from: a, to: b, kind: 'shared-mechanism',
+          note: `No curated edge exists between ${a} and ${b} in mock mode. ` +
+            `Either (1) switch to the "Free pair (new)" sub-tab to draft a brand-new connection (works in live mode with an API key), ` +
+            `(2) use the 🎲 Random pair button to load a pair that does have a curated edge, ` +
+            `or (3) pick another pair you suspect might be connected.`,
+          pmids: [],
+          source: 'mock-no-curated-edge',
+        };
       }
-      state.connProposal = {
-        from: e.from, to: e.to, kind: e.kind,
-        note: e.note, pmids: e.pmids ?? [],
-        source: exact ? 'mock-exact' : 'mock-random',
-      };
       resetConnRating();
       renderConnProposal();
       return;
     }
 
-    // Live mode: call Claude with JSON-mode prompt
+    // Live mode: call Claude with the appropriate JSON-mode prompt
     const apiKey = (loadApiKey() || $('#api-key-input').value).trim();
     if (!apiKey || !looksLikeAnthropicKey(apiKey)) {
       toast('Live mode needs your Anthropic API key in the header.', 'warn', 4200);
@@ -896,17 +1018,27 @@ async function generateConnection() {
     }
     saveApiKey(apiKey);
 
-    let sys = CONNECTION_GENERATOR_PROMPT;
+    let sys = sub === 'freepair' ? CONNECTION_FREEPAIR_PROMPT : CONNECTION_GENERATOR_PROMPT;
     if (model.avoidPatterns.length > 0) {
       sys += '\n\n## Avoid these patterns previously flagged by the SME:\n';
       for (const av of model.avoidPatterns) sys += `- ${av.pattern}\n`;
     }
+    // In free-pair mode, tell Claude explicitly whether the pair is already
+    // in the curated graph so it leans toward proposing something new.
+    let userMsg = `Gene A: ${a}\nGene B: ${b}`;
+    if (sub === 'freepair') {
+      const exists = findExistingMockEdge(a, b);
+      userMsg += exists
+        ? `\n\nNote: this pair (${exists.from}–${exists.to}, kind=${exists.kind}) is already in the curated graph. Propose either a *different* mechanism or refine the existing claim.`
+        : `\n\nNote: this pair is NOT currently in the curated graph. Draft a NEW connection (or return kind="none" if no connection exists).`;
+    }
+
     const result = await streamClaude({
       apiKey,
       model: model.settings.anthropicModel,
       system: sys,
-      messages: [{ role: 'user', content: `Gene A: ${a}\nGene B: ${b}` }],
-      maxTokens: 800,
+      messages: [{ role: 'user', content: userMsg }],
+      maxTokens: 900,
     });
 
     // Parse JSON from the response, tolerant of stray text/fences
@@ -925,9 +1057,12 @@ async function generateConnection() {
       kind: parsed.kind || 'none',
       note: parsed.note || '',
       pmids: Array.isArray(parsed.pmids) ? parsed.pmids.filter(Boolean) : [],
-      source: 'live',
+      strength: typeof parsed.strength === 'number' ? parsed.strength : null,
+      novel: parsed.novel === true,
+      source: sub === 'freepair' ? 'live-new' : 'live',
       usage: result.usage,
     };
+    state.connAcceptedId = null; // reset accept state on each new proposal
     resetConnRating();
     renderConnProposal();
     toast(`Connection proposed (${result.usage?.input_tokens || 0} in / ${result.usage?.output_tokens || 0} out).`, 'ok');
@@ -940,9 +1075,157 @@ async function generateConnection() {
   }
 }
 
+/**
+ * AI-suggest sub-mode: ask Claude for a list of candidate gene pairs the
+ * graph doesn't have yet. Renders into #conn-aisuggest-list; clicking a row
+ * pre-fills A/B and switches to free-pair sub-mode so the SME can generate
+ * the full proposal.
+ */
+async function generateAiSuggestions() {
+  if (state.mode !== 'live') {
+    toast('AI-suggested pairs requires live mode (needs your Anthropic API key).', 'warn', 4200);
+    return;
+  }
+  const apiKey = (loadApiKey() || $('#api-key-input').value).trim();
+  if (!apiKey || !looksLikeAnthropicKey(apiKey)) {
+    toast('Live mode needs your Anthropic API key in the header.', 'warn', 4200);
+    return;
+  }
+  saveApiKey(apiKey);
+
+  const theme = ($('#conn-aisuggest-theme').value || '').trim();
+  const n = Math.max(1, Math.min(10, parseInt($('#conn-aisuggest-count').value, 10) || 5));
+  const exclude = buildExcludeEdgesString();
+  const panelSyms = model.panel.map((g) => g.symbol).join(', ');
+
+  const btn = $('#conn-aisuggest-btn');
+  btn.disabled = true;
+  btn.textContent = 'Suggesting…';
+
+  try {
+    const userMsg =
+      `Suggest ${n} candidate gene pairs from the panel for SME review.\n\n` +
+      (theme ? `Theme / cluster the SME is exploring: "${theme}"\n\n` : '') +
+      `Panel genes (use only these symbols):\n${panelSyms}\n\n` +
+      `Exclude — pairs already in the curated graph or accepted by the SME (each pair given as the two symbols joined by "-", order-insensitive):\n${exclude}`;
+
+    const result = await streamClaude({
+      apiKey,
+      model: model.settings.anthropicModel,
+      system: CONNECTION_AISUGGEST_PROMPT,
+      messages: [{ role: 'user', content: userMsg }],
+      maxTokens: 1100,
+    });
+
+    let parsed = null;
+    try {
+      const m = result.text.match(/\{[\s\S]*\}/);
+      parsed = m ? JSON.parse(m[0]) : JSON.parse(result.text);
+    } catch {
+      console.warn('AI-suggest JSON parse fail, raw:', result.text);
+      toast('Claude did not return parseable JSON. Try again.', 'warn', 4000);
+      return;
+    }
+
+    const pairs = Array.isArray(parsed.pairs) ? parsed.pairs : [];
+    state.aiSuggestions = pairs
+      .map((p) => ({ from: p.from, to: p.to, kind: p.kind || 'shared-mechanism', reason: p.reason || '' }))
+      .filter((p) => p.from && p.to && p.from !== p.to);
+
+    renderAiSuggestions();
+    toast(`${state.aiSuggestions.length} pair${state.aiSuggestions.length === 1 ? '' : 's'} suggested.`, 'ok');
+  } catch (err) {
+    console.error(err);
+    toast(`Suggestion failed: ${err.message}`, 'danger', 5000);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Suggest pairs';
+  }
+}
+
+function renderAiSuggestions() {
+  const ul = $('#conn-aisuggest-list');
+  ul.innerHTML = '';
+  if (!state.aiSuggestions.length) { ul.style.display = 'none'; return; }
+  ul.style.display = '';
+  for (const s of state.aiSuggestions) {
+    ul.appendChild(
+      el('li', {
+        title: `Click to load ${s.from} ↔ ${s.to} into the picker and draft the full proposal`,
+        onClick: () => {
+          state.connGeneA = s.from;
+          state.connGeneB = s.to;
+          $('#conn-gene-a').value = s.from;
+          $('#conn-gene-b').value = s.to;
+          // Drop into free-pair sub-mode so the next Generate drafts a new edge
+          state.connSubMode = 'freepair';
+          renderConnSubMode();
+          generateConnection();
+        },
+      },
+        el('span', { class: 'ais-pair' }, `${s.from} ↔ ${s.to}`),
+        el('span', { class: 'ais-reason' }, s.reason),
+      ),
+    );
+  }
+}
+
+function renderConnSubMode() {
+  $$('.conn-submode button').forEach((b) => b.classList.toggle('active', b.dataset.cmsub === state.connSubMode));
+  const isSuggest = state.connSubMode === 'aisuggest';
+  $('#conn-pair-controls').style.display = isSuggest ? 'none' : '';
+  $('#conn-aisuggest-controls').style.display = isSuggest ? '' : 'none';
+  // Mode-specific hint copy
+  const hint = $('#conn-submode-hint');
+  if (state.connSubMode === 'freepair') {
+    hint.innerHTML = 'Pick any two of the 221 genes; in <strong>live mode</strong> Claude drafts a NEW mechanistic connection for you to validate. Mark <em>Real</em> + click <strong>Accept into graph</strong> to add it as a dashed-green edge on the network.';
+  } else if (state.connSubMode === 'aisuggest') {
+    hint.innerHTML = 'Have Claude propose currently-unconnected pairs likely to share biology. Click a row to load it into the picker and draft the full proposal.';
+  } else {
+    hint.innerHTML = 'In <strong>live mode</strong>, Claude proposes the strongest documented connection between A and B with PMID citations. In <strong>mock mode</strong>, a random pre-curated edge from the network is shown.';
+  }
+  // Hide rating block when switching modes (until next Generate)
+  $('#conn-rating-block').style.display = 'none';
+  state.connProposal = null;
+  state.connAcceptedId = null;
+  $('#conn-card').className = 'brief-frame empty';
+  $('#conn-card').innerHTML = isSuggest
+    ? 'Click <strong>Suggest pairs</strong> to have Claude propose candidate edges.'
+    : 'Pick two genes and click <strong>Generate connection</strong>.';
+}
+
+/**
+ * SME has marked a fresh proposal as Real → push it into model.acceptedEdges
+ * so the network page renders it as a dashed-green overlay.
+ */
+function acceptConnIntoGraph() {
+  if (!state.connProposal) return;
+  if (state.connAcceptedId) {
+    toast('Already accepted.', 'warn'); return;
+  }
+  const p = state.connProposal;
+  if (p.kind === 'none') {
+    toast("Can't accept kind=\"none\" into the graph.", 'warn'); return;
+  }
+  const stored = model.recordAcceptedEdge({
+    from: p.from, to: p.to, kind: p.kind, note: p.note,
+    pmids: p.pmids, strength: p.strength ?? (state.connRating.explanation / 5),
+    source: p.source,
+  });
+  state.connAcceptedId = stored.id;
+  const note = $('#conn-accepted-note');
+  note.style.display = '';
+  note.textContent = `Added to the network as a dashed-green edge — open the Network page to see ${stored.from} ↔ ${stored.to} (${stored.kind}). Model bumped to ${model.version}.`;
+  $('#conn-accept-btn').disabled = true;
+  $('#conn-accept-btn').textContent = '✓ Accepted';
+}
+
 function renderConnProposal() {
   const card = $('#conn-card');
   const rate = $('#conn-rating-block');
+  // Hide leftover "accepted" badge until a new proposal earns one
+  const acceptedNote = $('#conn-accepted-note');
+  if (acceptedNote) acceptedNote.style.display = 'none';
   if (!state.connProposal) {
     card.className = 'brief-frame empty';
     card.innerHTML = 'Pick two genes and click <strong>Generate connection</strong>.';
@@ -1030,6 +1313,18 @@ function renderConnRatingControls() {
 function updateConnSaveEnabled() {
   const r = state.connRating;
   $('#conn-save-btn').disabled = !(r.validity && r.explanation > 0 && r.citation > 0);
+  // Accept-into-graph: only meaningful for freepair/aisuggest sub-modes,
+  // only when SME marked Real, only when proposal has a real kind, and
+  // only once per proposal.
+  const acceptBtn = $('#conn-accept-btn');
+  const p = state.connProposal;
+  const eligible =
+    p && p.kind !== 'none' &&
+    (state.connSubMode === 'freepair' || state.connSubMode === 'aisuggest') &&
+    r.validity === 'yes';
+  acceptBtn.style.display = eligible ? '' : 'none';
+  acceptBtn.disabled = !eligible || !!state.connAcceptedId;
+  acceptBtn.textContent = state.connAcceptedId ? '✓ Accepted' : '+ Accept into graph';
 }
 
 function resetConnRating() {
@@ -1174,6 +1469,19 @@ function boot() {
   );
   $('#conn-save-btn').addEventListener('click', saveConnRating);
   $('#conn-feedback').addEventListener('input', (e) => { state.connRating.feedback = e.target.value; });
+
+  // Sub-mode chips inside Train-connection pane
+  $$('.conn-submode button').forEach((b) =>
+    b.addEventListener('click', () => {
+      state.connSubMode = b.dataset.cmsub;
+      renderConnSubMode();
+    }),
+  );
+  // AI-suggest button
+  $('#conn-aisuggest-btn').addEventListener('click', generateAiSuggestions);
+  // Accept-into-graph button
+  $('#conn-accept-btn').addEventListener('click', acceptConnIntoGraph);
+  renderConnSubMode();
 
   // Subscribe to model changes
   model.on('change', () => renderAll());
