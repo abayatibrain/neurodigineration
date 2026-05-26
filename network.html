@@ -11,18 +11,29 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./assets/network.css" />
-  <!-- Apply saved theme BEFORE first paint to avoid a flash of the wrong theme -->
+  <!-- Apply saved theme BEFORE first paint to avoid a flash of the wrong theme.
+       NEW DEFAULT: light. First-time visitors see the day theme; the dark
+       theme is opt-in via the toggle. Returning users with a saved
+       preference keep whatever they had. -->
   <script>
     (function () {
       try {
         var t = localStorage.getItem('nd-network-theme');
         if (!t) {
-          // Backward-compat
+          // Backward-compat: migrate the legacy 'bioscope-network-theme' key
           var legacy = localStorage.getItem('bioscope-network-theme');
           if (legacy) { t = legacy; try { localStorage.setItem('nd-network-theme', legacy); } catch (e) {} }
         }
-        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-      } catch (e) { /* localStorage blocked — stay on default (dark) */ }
+        // Honour saved preference if present; otherwise default to light.
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (e) {
+        // localStorage blocked — still default to light
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
     })();
   </script>
 </head>
@@ -38,6 +49,9 @@
     <span class="spacer"></span>
     <div class="disease-filters" id="disease-filters"></div>
     <span class="spacer"></span>
+    <button class="header-btn" id="suggest-open" type="button" title="Ask Claude to propose a connection" aria-label="Suggest a connection">
+      <span aria-hidden="true">✦</span>
+    </button>
     <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light/dark theme" aria-label="Toggle theme">
       <span class="moon" aria-hidden="true">☾</span><span class="sun" aria-hidden="true">☀</span>
     </button>
@@ -47,14 +61,24 @@
       <a href="./train.html">Train</a>
     </nav>
   </div>
-  <div class="row" style="padding-top: 0; padding-bottom: 8px; align-items: center;">
-    <div class="edge-legend" id="edge-legend"></div>
-    <span style="font-size: 11px; color: var(--mute); margin-left: 12px;">
-      &middot; <span style="display:inline-block;width:24px;height:0;border-top:1.5px dotted currentColor;vertical-align:middle;margin-right:4px;"></span>
-      <em>dotted</em> = tangential, awaiting SME validation
-    </span>
-  </div>
 </header>
+
+<!-- Floating, collapsible edge legend on the left side of the canvas.
+     Collapsed by default to keep the canvas clear; the "Legend" pill stays
+     visible so the user remembers it's there. -->
+<aside class="legend-float" id="legend-float">
+  <button class="legend-toggle" id="legend-toggle" type="button" aria-expanded="false" aria-controls="legend-body">
+    <span class="caret" aria-hidden="true">▸</span>
+    <span class="title">Legend</span>
+  </button>
+  <div class="legend-body" id="legend-body" hidden>
+    <div class="edge-legend" id="edge-legend"></div>
+    <div class="legend-note">
+      <span class="tangential-swatch" aria-hidden="true"></span>
+      <em>dotted</em> = tangential, awaiting SME validation
+    </div>
+  </div>
+</aside>
 
 <div class="canvas-frame">
   <svg id="graph"></svg>
@@ -77,10 +101,11 @@
 
 <aside class="panel" id="panel"></aside>
 
-<div class="suggest-card" id="suggest-card">
+<div class="suggest-card" id="suggest-card" hidden>
   <div class="head" id="suggest-head">
     <h4>Suggest a connection — Claude searches</h4>
     <button class="toggle" id="suggest-toggle" title="Collapse/expand">−</button>
+    <button class="close" id="suggest-close" title="Close (re-open from the ✦ button in the header)" aria-label="Close suggest box">×</button>
   </div>
   <div class="body">
     <div class="hint">Type two genes or a free-text question. Claude will propose a connection (with PMIDs) for you to rate.</div>

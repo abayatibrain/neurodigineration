@@ -177,8 +177,47 @@ function zoomBy(factor) {
   svg.transition().duration(220).call(zoom.scaleBy, factor);
 }
 function zoomReset() {
-  svg.transition().duration(380).call(zoom.transform, d3.zoomIdentity);
+  // Reset = recentre on SNCA at the default zoomed-out scale, matching
+  // the initial-load view. If SNCA isn't in NODES for some reason fall
+  // back to the plain identity transform.
+  if (!recenterOnSNCA(0.55, 380)) {
+    svg.transition().duration(380).call(zoom.transform, d3.zoomIdentity);
+  }
 }
+
+/**
+ * Translate + scale the SVG so that SNCA sits at the centre of the viewport.
+ * Returns true if SNCA was found, false otherwise. Used both on initial
+ * load (with a long transition to settle the eye) and by the zoom-reset
+ * button.
+ */
+function recenterOnSNCA(scale = 0.55, ms = 800) {
+  const snca = NODES.find((n) => n.id === 'SNCA');
+  if (!snca || typeof snca.x !== 'number') return false;
+  const w = W();
+  const h = H();
+  const tx = w / 2 - snca.x * scale;
+  const ty = h / 2 - snca.y * scale;
+  svg.transition().duration(ms)
+    .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  return true;
+}
+
+// After the initial force-simulation has cooled, recentre once on SNCA so
+// the page opens with the user's anchor gene in the middle of the view.
+let initialCenterDone = false;
+simulation.on('end', () => {
+  if (initialCenterDone) return;
+  initialCenterDone = true;
+  recenterOnSNCA(0.55, 700);
+});
+// Belt-and-braces: if the simulation never fires 'end' (heavy graphs can
+// re-warm before settling), centre after a fixed timeout too.
+setTimeout(() => {
+  if (initialCenterDone) return;
+  initialCenterDone = true;
+  recenterOnSNCA(0.55, 700);
+}, 1800);
 
 // ---------------------------------------------------------------------------
 // Force simulation
@@ -741,12 +780,32 @@ Rules:
 function setupSuggestCard() {
   const card = $('#suggest-card');
   const toggle = $('#suggest-toggle');
+  const closeBtn = $('#suggest-close');
+  const openBtn = $('#suggest-open');
   const head = $('#suggest-head');
   const goBtn = $('#suggest-go');
   const input = $('#suggest-input');
 
+  // Hidden by default — opened via the ✦ header button.
+  const setOpen = (open) => {
+    if (open) {
+      card.hidden = false;
+      card.classList.remove('collapsed');
+      if (toggle) toggle.textContent = '−';
+      openBtn?.classList.add('active');
+      input?.focus();
+    } else {
+      card.hidden = true;
+      openBtn?.classList.remove('active');
+    }
+  };
+
+  openBtn?.addEventListener('click', () => setOpen(card.hidden));
+  closeBtn?.addEventListener('click', () => setOpen(false));
+
+  // Clicking the header (but not its sub-buttons) collapses the body.
   head.addEventListener('click', (e) => {
-    if (e.target === toggle || e.target === goBtn) return;
+    if (e.target === toggle || e.target === closeBtn || e.target === goBtn) return;
     card.classList.toggle('collapsed');
     toggle.textContent = card.classList.contains('collapsed') ? '+' : '−';
   });
@@ -759,6 +818,18 @@ function setupSuggestCard() {
   goBtn.addEventListener('click', () => askSuggestion(input.value.trim()));
   input.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') askSuggestion(input.value.trim());
+  });
+}
+
+function setupLegendFloat() {
+  const btn = $('#legend-toggle');
+  const body = $('#legend-body');
+  if (!btn || !body) return;
+  btn.addEventListener('click', () => {
+    const isOpen = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', String(!isOpen));
+    if (isOpen) body.setAttribute('hidden', '');
+    else body.removeAttribute('hidden');
   });
 }
 
@@ -907,6 +978,7 @@ function boot() {
   $('#dismiss-help').addEventListener('click', () => $('#help-overlay').remove());
   $('#theme-toggle').addEventListener('click', toggleTheme);
   setupSuggestCard();
+  setupLegendFloat();
   model.on('change', renderHeaderStatus);
   // Kick the simulation
   simulation.alpha(1).restart();

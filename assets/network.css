@@ -127,8 +127,9 @@ nav.site-nav { display: flex; gap: 14px; font-size: 13.5px; }
 nav.site-nav a { color: var(--ink-soft); }
 nav.site-nav a:hover { color: var(--accent); }
 
-/* Theme toggle button */
-.theme-toggle {
+/* Theme toggle button + generic header buttons (✦ suggest-open, etc.) */
+.theme-toggle,
+.header-btn {
   width: 32px; height: 32px;
   border-radius: 8px;
   border: 1px solid var(--rule);
@@ -137,10 +138,13 @@ nav.site-nav a:hover { color: var(--accent); }
   cursor: pointer;
   display: grid; place-items: center;
   font-size: 14px;
-  transition: color 0.15s, border-color 0.15s, transform 0.05s;
+  transition: color 0.15s, border-color 0.15s, transform 0.05s, background 0.15s;
 }
-.theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
-.theme-toggle:active { transform: scale(0.94); }
+.theme-toggle:hover,
+.header-btn:hover { color: var(--accent); border-color: var(--accent); }
+.theme-toggle:active,
+.header-btn:active { transform: scale(0.94); }
+.header-btn.active { background: var(--accent); color: white; border-color: transparent; }
 .theme-toggle .sun { display: none; }
 .theme-toggle .moon { display: inline; }
 [data-theme="light"] .theme-toggle .sun { display: inline; }
@@ -163,9 +167,9 @@ nav.site-nav a:hover { color: var(--accent); }
 .disease-filters button.active { color: var(--ink); border-color: transparent; }
 .disease-filters button:hover { color: var(--ink); }
 
-/* Edge-kind legend */
+/* Edge-kind legend (rendered inside the floating .legend-body) */
 .edge-legend {
-  display: flex; gap: 8px; flex-wrap: wrap;
+  display: flex; gap: 6px 10px; flex-wrap: wrap;
   font-size: 11px; color: var(--mute);
 }
 .edge-legend .item {
@@ -173,6 +177,50 @@ nav.site-nav a:hover { color: var(--accent); }
 }
 .edge-legend .swatch {
   width: 16px; height: 2.5px; border-radius: 1px;
+}
+
+/* Floating, collapsible legend panel on the left side of the canvas. */
+.legend-float {
+  position: fixed;
+  top: 72px;
+  left: 12px;
+  z-index: 30;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  padding: 6px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  max-width: 260px;
+  user-select: none;
+}
+.legend-float .legend-toggle {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer; padding: 4px 8px;
+  color: var(--ink-soft); font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.02em; text-transform: uppercase;
+  width: 100%; text-align: left;
+}
+.legend-float .legend-toggle .caret {
+  transition: transform 0.18s;
+  font-size: 10px;
+}
+.legend-float .legend-toggle[aria-expanded="true"] .caret { transform: rotate(90deg); }
+.legend-float .legend-body {
+  padding: 8px 8px 6px;
+  display: flex; flex-direction: column; gap: 8px;
+  max-width: 240px;
+}
+.legend-float .legend-body[hidden] { display: none; }
+.legend-float .legend-note {
+  font-size: 10.5px; color: var(--mute);
+  display: flex; align-items: center; gap: 6px;
+  border-top: 1px solid var(--rule); padding-top: 6px;
+}
+.legend-float .tangential-swatch {
+  display: inline-block; width: 24px; height: 0;
+  border-top: 1.5px dotted currentColor;
 }
 
 /* ===== Canvas ===== */
@@ -211,14 +259,20 @@ nav.site-nav a:hover { color: var(--accent); }
   width: 420px;
   background: linear-gradient(180deg, var(--panel) 0%, var(--bg-2) 100%);
   border-left: 1px solid var(--rule);
-  box-shadow: -8px 0 24px rgba(0,0,0,0.4);
+  /* Shadow only when open — otherwise the blur bleeds back into the
+     viewport from the off-screen panel and creates a dark strip on
+     the right edge of the canvas. */
+  box-shadow: none;
   padding: 22px 24px;
   overflow-y: auto;
   transform: translateX(100%);
-  transition: transform 0.28s cubic-bezier(0.18, 0.9, 0.3, 1);
+  transition: transform 0.28s cubic-bezier(0.18, 0.9, 0.3, 1), box-shadow 0.28s;
   z-index: 40;
 }
-.panel.open { transform: translateX(0); }
+.panel.open {
+  transform: translateX(0);
+  box-shadow: -8px 0 24px rgba(0,0,0,0.4);
+}
 .panel .close {
   position: absolute; top: 14px; right: 14px;
   width: 28px; height: 28px; border-radius: 6px;
@@ -444,11 +498,17 @@ nav.site-nav a:hover { color: var(--accent); }
   text-transform: uppercase; color: var(--gold);
   font-weight: 700; flex: 1;
 }
-.suggest-card .head .toggle {
+.suggest-card .head .toggle,
+.suggest-card .head .close {
   font-size: 14px; color: var(--mute);
   background: none; border: none; cursor: pointer;
   width: 22px; height: 22px;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
 }
+.suggest-card .head .toggle:hover,
+.suggest-card .head .close:hover { color: var(--ink); background: var(--panel-2, rgba(0,0,0,0.04)); }
+.suggest-card[hidden] { display: none !important; }
 .suggest-card.collapsed .body { display: none; }
 .suggest-card .body { display: block; }
 .suggest-card .hint {
