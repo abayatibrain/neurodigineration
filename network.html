@@ -49,6 +49,9 @@
     <span class="spacer"></span>
     <div class="disease-filters" id="disease-filters"></div>
     <span class="spacer"></span>
+    <button class="header-btn" id="help-open" type="button" title="How to use this map" aria-label="How to use this map">
+      <span aria-hidden="true">?</span>
+    </button>
     <button class="header-btn" id="suggest-open" type="button" title="Ask Claude to propose a connection" aria-label="Suggest a connection">
       <span aria-hidden="true">✦</span>
     </button>
@@ -90,7 +93,7 @@
   <button id="zoom-out" title="Zoom out">−</button>
 </div>
 
-<div class="help-overlay" id="help-overlay">
+<div class="help-overlay" id="help-overlay" hidden>
   <h4>How to use this map</h4>
   <div><strong>Click</strong> a gene to focus its connections.</div>
   <div><strong>Click an edge</strong> to read the molecular interaction with citations — and rate the connection.</div>

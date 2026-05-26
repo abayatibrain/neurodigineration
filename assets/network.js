@@ -203,21 +203,8 @@ function recenterOnSNCA(scale = 0.55, ms = 800) {
   return true;
 }
 
-// After the initial force-simulation has cooled, recentre once on SNCA so
-// the page opens with the user's anchor gene in the middle of the view.
-let initialCenterDone = false;
-simulation.on('end', () => {
-  if (initialCenterDone) return;
-  initialCenterDone = true;
-  recenterOnSNCA(0.55, 700);
-});
-// Belt-and-braces: if the simulation never fires 'end' (heavy graphs can
-// re-warm before settling), centre after a fixed timeout too.
-setTimeout(() => {
-  if (initialCenterDone) return;
-  initialCenterDone = true;
-  recenterOnSNCA(0.55, 700);
-}, 1800);
+// (The simulation.on('end', ...) hook that recentres on SNCA is registered
+//  AFTER the simulation is created — see below, just after the const.)
 
 // ---------------------------------------------------------------------------
 // Force simulation
@@ -259,6 +246,24 @@ const simulation = d3.forceSimulation(NODES)
   .force('x', d3.forceX((d) => seedX(d)).strength(0.04))
   .force('y', d3.forceY(H() * 0.5).strength(0.015))
   .alphaDecay(0.022);
+
+// After the initial simulation has cooled, recentre once on SNCA so the
+// page opens with the user's anchor gene in the middle of the view.
+// (recenterOnSNCA is declared above; this is the registration site that
+//  has to live AFTER `const simulation = ...` to avoid the TDZ.)
+let initialCenterDone = false;
+simulation.on('end', () => {
+  if (initialCenterDone) return;
+  initialCenterDone = true;
+  recenterOnSNCA(0.55, 700);
+});
+// Belt-and-braces: if 'end' never fires (heavy graphs re-warm before
+// settling), centre after a fixed timeout.
+setTimeout(() => {
+  if (initialCenterDone) return;
+  initialCenterDone = true;
+  recenterOnSNCA(0.55, 700);
+}, 1800);
 
 function nodeRadius(n) {
   // Box "size" — actually we use rounded rects; expose as a single number for collision.
@@ -975,7 +980,21 @@ function boot() {
   $('#zoom-in').addEventListener('click', () => zoomBy(1.3));
   $('#zoom-out').addEventListener('click', () => zoomBy(1 / 1.3));
   $('#zoom-reset').addEventListener('click', () => zoomReset());
-  $('#dismiss-help').addEventListener('click', () => $('#help-overlay').remove());
+  // Help overlay — hidden on load; opened/closed by the "?" header button
+  // and dismissed by the "Got it" button. Re-openable, not destroyed.
+  const helpOverlay = $('#help-overlay');
+  const helpOpenBtn = $('#help-open');
+  const setHelpOpen = (open) => {
+    if (open) {
+      helpOverlay.hidden = false;
+      helpOpenBtn?.classList.add('active');
+    } else {
+      helpOverlay.hidden = true;
+      helpOpenBtn?.classList.remove('active');
+    }
+  };
+  helpOpenBtn?.addEventListener('click', () => setHelpOpen(helpOverlay.hidden));
+  $('#dismiss-help').addEventListener('click', () => setHelpOpen(false));
   $('#theme-toggle').addEventListener('click', toggleTheme);
   setupSuggestCard();
   setupLegendFloat();

@@ -445,19 +445,23 @@ nav.site-nav a:hover { color: var(--accent); }
 .zoom-controls button:hover { background: var(--panel-2); color: var(--ink); }
 
 /* ===== Help overlay ===== */
+/* Hidden by default — opened from the "?" header button. Positioned in
+ * the bottom-left so it doesn't overlap the floating Legend (top-left) or
+ * the suggest box (bottom-right). */
 .help-overlay {
-  position: fixed; left: 18px; top: 72px;
+  position: fixed; left: 18px; bottom: 18px;
   background: var(--panel);
   border: 1px solid var(--rule);
   border-radius: 10px;
   padding: 14px 16px;
   font-size: 12.5px;
   color: var(--ink-soft);
-  max-width: 280px;
+  max-width: 320px;
   box-shadow: var(--shadow-1);
   z-index: 30;
-  transition: opacity 0.25s;
+  transition: opacity 0.25s, transform 0.25s;
 }
+.help-overlay[hidden] { display: none !important; }
 .help-overlay.fading { opacity: 0.3; }
 .help-overlay h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); }
 .help-overlay kbd {
