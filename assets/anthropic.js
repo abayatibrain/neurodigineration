@@ -20,6 +20,19 @@
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
 
+// Models that think by default (adaptive thinking). Their thinking tokens
+// count against max_tokens, so a 2k cap that was fine for Sonnet 4.6 can
+// leave a brief cut off mid-sentence. We stream, so a generous floor costs
+// nothing unless the model actually uses it.
+const THINKS_BY_DEFAULT = /^claude-(opus-5|sonnet-5|fable-5|mythos-5)/;
+const THINKING_MAX_TOKENS_FLOOR = 16000;
+
+// Server-side refusal fallback: if a safety classifier declines the request
+// (stop_reason "refusal"), the API re-runs it on a fallback model instead
+// of returning nothing. Enabled on the models that support it.
+const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
+const SUPPORTS_FALLBACKS = /^claude-(opus-5|fable-5-1)/;
+
 /** Pulls API key out of localStorage. Returns null if absent. */
 export function loadApiKey() {
   try {
@@ -58,7 +71,7 @@ export function looksLikeAnthropicKey(s) {
  *
  * @param {object} opts
  * @param {string} opts.apiKey
- * @param {string} opts.model  e.g. "claude-sonnet-4-6", "claude-haiku-4-5-20251001"
+ * @param {string} opts.model  e.g. "claude-opus-5", "claude-haiku-4-5"
  * @param {string} opts.system Top-level system prompt.
  * @param {Array<{role:'user'|'assistant', content: string}>} opts.messages
  * @param {number} [opts.maxTokens] default 2048
@@ -82,30 +95,41 @@ export async function streamClaude({
 
   const body = {
     model,
-    max_tokens: maxTokens,
+    max_tokens: THINKS_BY_DEFAULT.test(model) ? Math.max(maxTokens, THINKING_MAX_TOKENS_FLOOR) : maxTokens,
     system,
     messages,
     stream: true,
   };
-
-  const res = await fetch(ANTHROPIC_API, {
+  const headers = {
+    'content-type': 'application/json',
+    'x-api-key': apiKey,
+    'anthropic-version': ANTHROPIC_VERSION,
+    'anthropic-dangerous-direct-browser-access': 'true',
+  };
+  const send = (withFallbacks) => fetch(ANTHROPIC_API, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': ANTHROPIC_VERSION,
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify(body),
+    headers: withFallbacks ? { ...headers, 'anthropic-beta': FALLBACK_BETA } : headers,
+    body: JSON.stringify(withFallbacks ? { ...body, fallbacks: 'default' } : body),
     signal,
   });
-
-  if (!res.ok || !res.body) {
-    const errText = await res.text().catch(() => '');
+  const readError = async (r) => {
+    const errText = await r.text().catch(() => '');
     let parsed;
     try { parsed = JSON.parse(errText); } catch { /* not json */ }
-    const msg = parsed?.error?.message || errText || `HTTP ${res.status}`;
-    throw new Error(`Anthropic API: ${msg}`);
+    return parsed?.error?.message || errText || `HTTP ${r.status}`;
+  };
+
+  const tryFallbacks = SUPPORTS_FALLBACKS.test(model);
+  let res = await send(tryFallbacks);
+  if (tryFallbacks && res.status === 400) {
+    // If the fallback beta is not enabled for this key, retry plain rather
+    // than failing the whole request over an optional safety net.
+    const msg = await readError(res);
+    if (!/fallback|beta/i.test(msg)) throw new Error(`Anthropic API: ${msg}`);
+    res = await send(false);
+  }
+  if (!res.ok || !res.body) {
+    throw new Error(`Anthropic API: ${await readError(res)}`);
   }
 
   const reader = res.body.getReader();
@@ -159,12 +183,17 @@ export async function streamClaude({
     try { reader.releaseLock(); } catch { /* noop */ }
   }
 
+  if (stopReason === 'refusal' && !full.trim()) {
+    throw new Error('Claude declined this request (stop_reason: refusal). Rephrase it or pick a different model.');
+  }
   return { text: full, stopReason, usage };
 }
 
 /** Common model identifiers shown in the picker. Order = display order. */
 export const ANTHROPIC_MODELS = [
-  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 — balanced (recommended)' },
-  { id: 'claude-opus-4-6', label: 'Claude Opus 4.6 — highest quality, slowest, costliest' },
-  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 — fastest, cheapest' },
+  { id: 'claude-opus-5', label: 'Claude Opus 5 · highest quality (default)' },
+  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 · balanced, cheaper' },
+  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 · fastest, cheapest' },
+  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 · previous generation' },
+  { id: 'claude-opus-4-6', label: 'Claude Opus 4.6 · previous generation' },
 ];

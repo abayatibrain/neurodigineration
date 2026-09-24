@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>neurodigineration · network — interactive neurodegen gene network</title>
-  <meta name="description" content="Interactive cross-disease network of neurodegeneration-relevant genes. Click any edge to read the molecular interaction with PubMed citations — and rate it so neurodigineration's model learns from your judgement." />
+  <meta name="description" content="Interactive cross-disease network of 324 neurodegeneration genes. Search a gene, trace mechanistic paths between any two, check each edge against live PubMed, and rate it so neurodigineration's model learns from your judgement." />
   <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%2356b1ff'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='%230b0f14'>n</text></svg>" />
   <!-- arminbayati.com brand fonts — only used by the light theme but preloaded so the swap is instant -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -46,11 +46,22 @@
       <span class="name">neurodigineration<em>· network</em></span>
     </a>
     <span class="pill" id="model-status-pill">Loading…</span>
+    <div class="gene-search">
+      <input id="gene-search" type="search" placeholder="Find a gene…" autocomplete="off" spellcheck="false"
+             aria-label="Find a gene" aria-controls="gene-search-results" aria-expanded="false" />
+      <kbd class="search-kbd" aria-hidden="true">/</kbd>
+      <ul id="gene-search-results" class="search-results" role="listbox" hidden></ul>
+    </div>
     <span class="spacer"></span>
-    <div class="disease-filters" id="disease-filters"></div>
-    <span class="spacer"></span>
+    <div class="disease-filters" id="disease-filters" aria-label="Filter by disease group"></div>
     <button class="header-btn" id="help-open" type="button" title="How to use this map" aria-label="How to use this map">
       <span aria-hidden="true">?</span>
+    </button>
+    <button class="header-btn" id="path-open" type="button" title="Trace a path between two genes" aria-label="Trace a path">
+      <span aria-hidden="true">⇢</span>
+    </button>
+    <button class="header-btn" id="triage-open" type="button" title="Triage: rate unrated edges one by one, tentative first" aria-label="Triage unrated edges">
+      <span aria-hidden="true">◎</span>
     </button>
     <button class="header-btn" id="suggest-open" type="button" title="Ask Claude to propose a connection" aria-label="Suggest a connection">
       <span aria-hidden="true">✦</span>
@@ -62,26 +73,49 @@
       <a href="./">Brief</a>
       <a href="./ask.html">Ask</a>
       <a href="./train.html">Train</a>
+      <a href="./validation.html">Validation</a>
     </nav>
   </div>
 </header>
 
-<!-- Floating, collapsible edge legend on the left side of the canvas.
-     Collapsed by default to keep the canvas clear; the "Legend" pill stays
-     visible so the user remembers it's there. -->
-<aside class="legend-float" id="legend-float">
-  <button class="legend-toggle" id="legend-toggle" type="button" aria-expanded="false" aria-controls="legend-body">
-    <span class="caret" aria-hidden="true">▸</span>
-    <span class="title">Legend</span>
-  </button>
-  <div class="legend-body" id="legend-body" hidden>
-    <div class="edge-legend" id="edge-legend"></div>
-    <div class="legend-note">
-      <span class="tangential-swatch" aria-hidden="true"></span>
-      <em>dotted</em> = tangential, awaiting SME validation
+<!-- Left column: collapsible legend/filters + the path tracer. -->
+<div class="left-stack">
+  <aside class="legend-float" id="legend-float">
+    <button class="legend-toggle" id="legend-toggle" type="button" aria-expanded="false" aria-controls="legend-body">
+      <span class="caret" aria-hidden="true">▸</span>
+      <span class="title">Legend &amp; filters</span>
+    </button>
+    <div class="legend-body" id="legend-body" hidden>
+      <div class="legend-hint">Click a kind to hide or show it.</div>
+      <div class="edge-legend" id="edge-legend"></div>
+      <div class="legend-note">
+        <span class="tangential-swatch" aria-hidden="true"></span>
+        <em>dotted</em> = tentative, awaiting SME validation
+      </div>
+      <label class="check"><input type="checkbox" id="opt-hide-tentative" /> hide tentative edges</label>
+      <label class="check"><input type="checkbox" id="opt-verdicts" checked /> style edges by your verdicts
+        <span class="verdict-key"><i class="vk yes"></i>confirmed <i class="vk no"></i>rejected <i class="vk mixed"></i>contested</span></label>
+      <button class="link-btn" id="opt-show-all" type="button">reset filters</button>
+      <div class="legend-stats" id="legend-stats"></div>
     </div>
+  </aside>
+
+  <div class="tool-card" id="path-card" hidden>
+    <div class="head">
+      <h4>Trace a path</h4>
+      <button class="close" id="path-close" type="button" title="Close" aria-label="Close path tracer">×</button>
+    </div>
+    <div class="hint">Cheapest mechanistic routes between two genes. Strong, curated and confirmed edges are preferred; edges you rejected are never used.</div>
+    <div class="path-inputs">
+      <input id="path-from" list="gene-list" placeholder="from · GBA" autocomplete="off" spellcheck="false" aria-label="From gene" />
+      <button id="path-swap" type="button" title="Swap" aria-label="Swap genes">⇄</button>
+      <input id="path-to" list="gene-list" placeholder="to · MAPT" autocomplete="off" spellcheck="false" aria-label="To gene" />
+    </div>
+    <label class="check"><input type="checkbox" id="path-avoid-tentative" /> avoid tentative edges</label>
+    <button id="path-go" class="primary" type="button">Trace</button>
   </div>
-</aside>
+  <datalist id="gene-list"></datalist>
+</div>
 
 <div class="canvas-frame">
   <svg id="graph"></svg>
@@ -95,10 +129,11 @@
 
 <div class="help-overlay" id="help-overlay" hidden>
   <h4>How to use this map</h4>
-  <div><strong>Click</strong> a gene to focus its connections.</div>
-  <div><strong>Click an edge</strong> to read the molecular interaction with citations — and rate the connection.</div>
-  <div><strong>Drag</strong> nodes around. <strong>Double-click</strong> a node to unpin it.</div>
-  <div><strong>Scroll</strong> to zoom; <strong>click and drag the background</strong> to pan.</div>
+  <div><kbd>/</kbd> or the search box finds a gene by symbol, alias or protein name.</div>
+  <div><strong>Click</strong> a gene to focus its connections; <strong>click an edge</strong> to read it, check it against live PubMed and rate it.</div>
+  <div><strong>⇢</strong> traces the best routes between two genes. <strong>◎</strong> walks unrated edges one by one (<kbd>N</kbd> skips).</div>
+  <div><strong>Drag</strong> nodes; <strong>double-click</strong> to unpin. <strong>Scroll</strong> zooms; drag the background to pan. <kbd>Esc</kbd> clears.</div>
+  <div>Links are shareable: <code>?gene=SNCA</code>, <code>?edge=GBA~SNCA</code>, <code>?path=GBA~MAPT</code>.</div>
   <button class="dismiss" id="dismiss-help">Got it</button>
 </div>
 
@@ -111,7 +146,7 @@
     <button class="close" id="suggest-close" title="Close (re-open from the ✦ button in the header)" aria-label="Close suggest box">×</button>
   </div>
   <div class="body">
-    <div class="hint">Type two genes or a free-text question. Claude will propose a connection (with PMIDs) for you to rate.</div>
+    <div class="hint">Type two genes or a free-text question. Claude proposes a connection; its PMIDs are checked against PubMed before you rate it.</div>
     <textarea id="suggest-input" placeholder="e.g. SNCA TFEB    |    is BRCA1 connected to neurodegeneration?    |    PRKN OPA1"></textarea>
     <div class="row">
       <button id="suggest-go" type="button">Ask Claude</button>

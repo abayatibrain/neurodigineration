@@ -85,7 +85,7 @@ The model bumps its version (v0.1 → v0.2 → …) every time the learning loop
 | Mode | What it does | When to use it |
 | --- | --- | --- |
 | **Mock** (default) | Uses a bundled pool of 18 hand-crafted briefs (6 neurodegen + cancer-canon genes × 3 quality variants each: complete-and-cited, partial, hedging-and-vague). Zero API key, fully offline after the page loads. | Demo to employers, practise labelling, or build up enough preference data to be worth running against a real model. |
-| **Live** | Calls Claude directly from the browser using your Anthropic API key (`anthropic-dangerous-direct-browser-access` header). Key is stored only in `localStorage`, sent only to `api.anthropic.com`. Streaming via SSE. Lets you pick Sonnet / Opus / Haiku from a dropdown. | Real RLHF-style training: every rating you make actually shifts the next generation, because the model state shapes the next prompt sent to Claude. |
+| **Live** | Calls Claude directly from the browser using your Anthropic API key (`anthropic-dangerous-direct-browser-access` header). Key is stored only in `localStorage`, sent only to `api.anthropic.com`. Streaming via SSE. Defaults to Claude Opus 5 (with the server-side refusal fallback on); Sonnet 5, Haiku 4.5 and the 4.6 models are in the dropdown. | Real RLHF-style training: every rating you make actually shifts the next generation, because the model state shapes the next prompt sent to Claude. |
 
 **Three labelling workflows:**
 
@@ -96,6 +96,23 @@ The model bumps its version (v0.1 → v0.2 → …) every time the learning loop
 **Gene panel CRUD.** The right column lists the genes available in the picker. You can add new symbols (live mode supports any HGNC symbol; mock mode is limited to the bundled six). Each entry stores aliases, free-text notes, and "expected tokens" used by future eval extensions.
 
 **Metrics dashboard.** Counters (ratings, preferences, gold standards, examples, avoid patterns), a rating-distribution histogram, per-dimension trend over the last 12 ratings, and the full version-bump timeline.
+
+### Network verdicts and the compiled prompt
+
+Edge ratings (from the network page or train-page connection mode) don't go into the brief
+pools anymore. Up to v1.2.x they were pushed into `avoidPatterns` and `fewShotExamples`,
+which had two bad side effects: eight edge rejections would evict every brief-derived avoid
+pattern (the pool is capped at 8), and one-line edge notes got replayed to Claude as if they
+were example briefs.
+
+Now each verdict is pooled per gene pair into a consensus (`model.edgeConsensus(a, b)`):
+confirmed, rejected, contested or uncertain, plus a Beta(1,1) posterior for P(real).
+`model.compilePrompt({ genes })` is the one place a request's system prompt and few-shot turns
+get assembled. It appends the SME's confirmed and rejected pairs that touch the genes in play,
+and deliberately leaves contested pairs out, because "the expert isn't sure" is noise to a
+model. The train, ask and network pages all call it. Saved states migrate on load and on
+import (schema v2); nothing the SME taught is dropped, since every verdict still lives in
+`edgeRatings`.
 
 ### File structure for training mode
 
@@ -117,6 +134,56 @@ Once you've trained the model to your satisfaction (and exported the state), a s
 gene, get a brief, no labelling controls, no model state visible. The training GUI produces
 the artifact; the use GUI consumes it.
 
+## Network page (`/network.html`)
+
+A force-directed map of 324 genes and 510 curated edges across 11 disease groups, built so an
+SME can audit the graph edge by edge and teach the model as they go.
+
+![neurodigineration network, path tracer](docs/screenshot-network-path.png)
+
+- **Search** by symbol, alias or protein name (`/` focuses it). "krox" finds EGR2.
+- **Path tracer** (⇢): up to three cheapest routes between any two genes. Costs favour strong,
+  curated, mechanistic edges and your confirmations; shared-disease links are penalised
+  (co-implication isn't a mechanism) and edges you rejected are never used. Routes that lean
+  on tentative or shared-disease steps are flagged as hypotheses.
+- **Live PubMed evidence** per edge, straight from E-utilities in the browser: listed PMIDs
+  are resolved to title/journal/year, and any PMID PubMed doesn't know is flagged in red
+  (which is exactly how an invented citation from the ✦ suggest box shows up). There's also
+  a title/abstract co-mention count with the top hits. Short symbols (APP, HTT, CP) inflate
+  that count, and the panel says so.
+- **Triage** (◎): walks unrated edges one at a time, tentative and uncited first. `N` skips.
+- **Verdict styling**: pairs you confirmed turn solid (even if curated as tentative), rejected
+  ones go red-dotted, contested ones gold. Toggle it in *Legend & filters*, where each edge
+  kind can also be hidden.
+- **Shareable links**: `?gene=SNCA`, `?edge=GBA~SNCA`, `?path=GBA~MAPT`.
+- Rating a Claude-suggested edge *Real* persists it as an SME-accepted edge.
+
+### Round 7 data changes
+
+The Round 7 pass was mostly hygiene, and it found more than expected:
+
+- **The graph was in 8 pieces.** SOD1, the gene most people associate with familial ALS, had
+  zero edges. So did EPHA1, CLN6 and CLN8. A 14-gene lysosomal-enzyme cluster, the CMT myelin
+  trio (PMP22/MPZ/GJB1) and GIGYF2/EIF4G1 were islands. It's now one component, with SOD1
+  wired to CCS, C9orf72, TARDBP (as the notable *exception* to TDP-43 pathology), VDAC1 and p62.
+- **`kinase-substrate` was a catch-all.** Of 77 edges, 22 were actually kinases. The rest
+  were secretases, cathepsins, E3 ligases, phosphatases, CLEAR-network TFs, IRE1's RNase and
+  SUMF1's formylglycine chemistry. Two new kinds, `enzyme-substrate` and `transcriptional`,
+  take those, and edges that pointed substrate → enzyme (APP → BACE1, MAPT → GSK3B, …) were
+  flipped so directional kinds always read actor → target. Parkin → α-synuclein
+  ubiquitination is now marked tentative; it's contested in the literature.
+- 3 duplicate edges removed, 13 genes added (Doppel, Shadoo, mGluR5, ceruloplasmin, COASY,
+  FA2H, spastizin, AP5Z1, PNPLA6, EGR2, GDAP1, CCS, GFAP) and mirrored in the trainable panel.
+- New edges ship with `pmids: []`. PMIDs that couldn't be verified were left out rather than
+  guessed; the evidence panel is the intended way to back-fill them.
+
+`tests/` checks those invariants (one component, no dangling or duplicate edges, known kinds,
+graph and panel 1:1) plus the model's consensus, prompt compilation and migration:
+
+```bash
+node --test tests/*.test.mjs
+```
+
 ## Local development
 
 It's a static page. Open it directly, or serve it for the deep-link `?gene=…` routing:
@@ -132,12 +199,20 @@ python3 -m http.server 8765
 neurodigineration-web/
 ├── index.html                  # public brief viewer (no training controls)
 ├── train.html                  # human-in-the-loop SME training GUI
+├── ask.html                    # free-form Q&A using the trained model
+├── network.html                # interactive cross-disease gene network
+├── validation.html             # how the model is validated and benchmarked
 ├── assets/
 │   ├── train.css               # styles for train.html
-│   ├── model.js                # BioscopeModel — state + learning loop
+│   ├── model.js                # BioscopeModel: state, learning loop, edge consensus, compilePrompt
 │   ├── mock-briefs.js          # bundled 18-brief pool for mock mode
 │   ├── anthropic.js            # direct-from-browser Anthropic adapter
-│   └── app.js                  # main wiring for train.html
+│   ├── app.js                  # main wiring for train.html
+│   ├── ask.js / ask.css        # ask page
+│   ├── network.js / .css       # network page (D3 v7 from CDN)
+│   ├── network-data.js         # curated nodes, edges and edge-kind definitions
+│   └── pubmed.js               # rate-limited E-utilities client for live evidence
+├── tests/                      # node --test: graph integrity + model behaviour
 ├── preview.png                 # Handshake AI Showcase tile (SNCA brief above the fold)
 ├── docs/
 │   ├── screenshot-snca-full.png

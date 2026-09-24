@@ -22,7 +22,7 @@ import {
   saveApiKey,
   streamClaude,
 } from './anthropic.js';
-import { EDGES as NETWORK_EDGES, EDGE_COLORS, NODES as NETWORK_NODES } from './network-data.js';
+import { EDGES as NETWORK_EDGES, EDGE_COLORS, EDGE_KIND_GUIDE, NODES as NETWORK_NODES } from './network-data.js';
 
 const model = new BioscopeModel();
 
@@ -352,6 +352,7 @@ function renderMetrics() {
     ['Examples', examples.length],
     ['Avg overall', ratings.length === 0 ? '—' : avg.toFixed(2)],
     ['Avoid', model.avoidPatterns.length],
+    ['Edge verdicts', model.edgeRatings.length],
   ];
   for (const [k, n] of stats) {
     $('#metric-stats').appendChild(
@@ -509,20 +510,13 @@ async function generateBrief() {
     }
     saveApiKey(apiKey);
 
-    // Build messages from few-shot examples
-    const messages = [];
-    for (const ex of model.fewShotExamples.slice(-3)) {
-      messages.push({ role: 'user', content: `Produce a neurodigineration brief for the gene ${ex.gene}.` });
-      messages.push({ role: 'assistant', content: ex.brief });
-    }
-    messages.push({ role: 'user', content: `Produce a neurodigineration brief for the gene ${gene}. Follow every rule in the system prompt.` });
-
-    // Build system prompt with avoid patterns appended
-    let sys = model.systemPrompt;
-    if (model.avoidPatterns.length > 0) {
-      sys += '\n\n## Avoid these specific failure modes observed in low-rated past briefs:\n';
-      for (const av of model.avoidPatterns) sys += `- ${av.pattern}\n`;
-    }
+    // System prompt + few-shot turns come from the trained model state
+    // (avoid patterns, brief exemplars, SME network verdicts for this gene).
+    const { system: sys, fewShot } = model.compilePrompt({ genes: [gene] });
+    const messages = [
+      ...fewShot,
+      { role: 'user', content: `Produce a neurodigineration brief for the gene ${gene}. Follow every rule in the system prompt.` },
+    ];
 
     // Stream the response into the brief frame
     state.currentBrief = { gene, brief: '', source: 'live', variant: null };
@@ -578,16 +572,8 @@ async function generateABPair() {
       messages: [{ role: 'user', content: `Produce a neurodigineration brief for the gene ${gene}.` }],
       maxTokens: model.settings.anthropicMaxTokens,
     });
-    const trainedMessages = [];
-    for (const ex of model.fewShotExamples.slice(-3)) {
-      trainedMessages.push({ role: 'user', content: `Produce a neurodigineration brief for the gene ${ex.gene}.` });
-      trainedMessages.push({ role: 'assistant', content: ex.brief });
-    }
-    trainedMessages.push({ role: 'user', content: `Produce a neurodigineration brief for the gene ${gene}.` });
-    let sys = model.systemPrompt;
-    if (model.avoidPatterns.length > 0) {
-      sys += '\n\n## Avoid:\n' + model.avoidPatterns.map((a) => `- ${a.pattern}`).join('\n');
-    }
+    const { system: sys, fewShot } = model.compilePrompt({ genes: [gene] });
+    const trainedMessages = [...fewShot, { role: 'user', content: `Produce a neurodigineration brief for the gene ${gene}.` }];
     const trained = await streamClaude({
       apiKey,
       model: model.settings.anthropicModel,
@@ -804,7 +790,7 @@ You will receive two HGNC gene symbols (A and B). Your task is to propose the st
 Return ONLY a single JSON object with this exact shape, no markdown fences, no preamble:
 
 {
-  "kind": "kinase-substrate" | "receptor-ligand" | "complex" | "modifier" | "shared-mechanism" | "shared-disease" | "opposes" | "none",
+  "kind": "kinase-substrate" | "enzyme-substrate" | "transcriptional" | "receptor-ligand" | "complex" | "modifier" | "shared-mechanism" | "shared-disease" | "opposes" | "none",
   "note": "<2-3 sentence mechanistic explanation. If kind=none, explain what each gene does separately and that no significant connection is documented.>",
   "pmids": ["<pmid1>", "<pmid2>"]
 }
@@ -815,7 +801,9 @@ Rules:
 - Pick the most specific kind that applies.
 - note: ≤ 400 characters.
 - pmids: ≤ 3 entries.
-- The SME will rate your proposal. Honesty about absence of connection is rewarded; fabrication is penalised.`;
+- The SME will rate your proposal. Honesty about absence of connection is rewarded; fabrication is penalised.
+
+${EDGE_KIND_GUIDE}`;
 
 // Free-pair mode: SME deliberately picks two genes that may NOT already be
 // in the curated graph and asks Claude to draft a NEW connection. We tell
@@ -828,7 +816,7 @@ The SME has picked these two genes deliberately and wants the strongest plausibl
 Return ONLY a single JSON object with this exact shape, no markdown fences, no preamble:
 
 {
-  "kind": "kinase-substrate" | "receptor-ligand" | "complex" | "modifier" | "shared-mechanism" | "shared-disease" | "opposes" | "none",
+  "kind": "kinase-substrate" | "enzyme-substrate" | "transcriptional" | "receptor-ligand" | "complex" | "modifier" | "shared-mechanism" | "shared-disease" | "opposes" | "none",
   "note": "<2-4 sentence mechanistic explanation framed for an SME — be specific about which step, compartment, or substrate is involved. If kind=none, say so clearly and explain what each gene does separately.>",
   "pmids": ["<pmid1>", "<pmid2>", "<pmid3>"],
   "strength": 0.0..1.0,
@@ -841,7 +829,9 @@ Rules:
 - "strength" is your subjective confidence (0=speculative, 1=textbook fact).
 - Prefer kind="none" over fabricating. The SME rewards honest "no connection" answers.
 - note: ≤ 500 characters.
-- pmids: ≤ 3 entries.`;
+- pmids: ≤ 3 entries.
+
+${EDGE_KIND_GUIDE}`;
 
 // AI-suggested-pair mode: ask Claude for a *list* of candidate pairs that are
 // likely related but rare/underexplored, optionally biased by a SME theme.
@@ -861,9 +851,11 @@ Rules:
 - Suggest pairs the SME has NOT already listed in the "exclude" set. The exclude set is a list of curated edges already in the graph plus already-accepted edges.
 - Lean toward pairs with biological plausibility but limited textbook coverage (these are the ones worth SME judgement).
 - Prefer cross-disease pairs (e.g. one PD gene + one AD gene) when the mechanism plausibly bridges them.
-- kind must be one of: kinase-substrate, receptor-ligand, complex, modifier, shared-mechanism, shared-disease, opposes.
+- kind must be one of: kinase-substrate, enzyme-substrate, transcriptional, receptor-ligand, complex, modifier, shared-mechanism, shared-disease, opposes.
 - Do not duplicate pairs within your own output.
-- The SME will pick from your list. Quality over quantity.`;
+- The SME will pick from your list. Quality over quantity.
+
+${EDGE_KIND_GUIDE}`;
 
 function pickRandomGeneFromPanel() {
   const panel = model.panel;
@@ -1025,11 +1017,11 @@ async function generateConnection() {
     }
     saveApiKey(apiKey);
 
-    let sys = sub === 'freepair' ? CONNECTION_FREEPAIR_PROMPT : CONNECTION_GENERATOR_PROMPT;
-    if (model.avoidPatterns.length > 0) {
-      sys += '\n\n## Avoid these patterns previously flagged by the SME:\n';
-      for (const av of model.avoidPatterns) sys += `- ${av.pattern}\n`;
-    }
+    const sys = model.compilePrompt({
+      base: sub === 'freepair' ? CONNECTION_FREEPAIR_PROMPT : CONNECTION_GENERATOR_PROMPT,
+      genes: [a, b],
+      examples: false,
+    }).system;
     // In free-pair mode, tell Claude explicitly whether the pair is already
     // in the curated graph so it leans toward proposing something new.
     let userMsg = `Gene A: ${a}\nGene B: ${b}`;
@@ -1119,7 +1111,8 @@ async function generateAiSuggestions() {
     const result = await streamClaude({
       apiKey,
       model: model.settings.anthropicModel,
-      system: CONNECTION_AISUGGEST_PROMPT,
+      // Recent SME verdicts ride along so rejected pairs are not re-suggested.
+      system: model.compilePrompt({ base: CONNECTION_AISUGGEST_PROMPT, examples: false }).system,
       messages: [{ role: 'user', content: userMsg }],
       maxTokens: 1100,
     });
@@ -1428,12 +1421,13 @@ function saveConnRating() {
     citationQuality: r.citation,
     feedback: ($('#conn-feedback').value || '').trim(),
   });
+  const c = model.edgeConsensus(p.from, p.to);
   if (r.validity === 'no') {
-    toast(`Marked ${p.from}↔${p.to} as not real. Avoid pattern added; model now ${model.version}.`, 'warn', 4000);
+    toast(`Marked ${p.from}↔${p.to} as not real (pair now ${c.status}). Future prompts touching these genes will be told; model now ${model.version}.`, 'warn', 4200);
   } else if (r.validity === 'yes' && r.explanation >= 4) {
-    toast(`Confirmed ${p.from}↔${p.to}. Promoted to few-shot; model now ${model.version}.`, 'bump', 4000);
+    toast(`Confirmed ${p.from}↔${p.to} (pair now ${c.status}); model now ${model.version}.`, 'bump', 4000);
   } else {
-    toast('Judgement saved.', 'ok');
+    toast(`Judgement saved (pair ${c.status}, ${c.n} verdict${c.n === 1 ? '' : 's'}).`, 'ok');
   }
   // Auto-load the next pair to keep flow going
   state.connProposal = null;
@@ -1535,6 +1529,9 @@ function boot() {
   const sel = $('#api-model');
   sel.innerHTML = '';
   for (const m of ANTHROPIC_MODELS) sel.appendChild(el('option', { value: m.id }, m.label));
+  if (!ANTHROPIC_MODELS.some((m) => m.id === model.settings.anthropicModel)) {
+    sel.appendChild(el('option', { value: model.settings.anthropicModel }, `${model.settings.anthropicModel} (saved)`));
+  }
   sel.value = model.settings.anthropicModel;
 
   // Connection-training wiring

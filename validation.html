@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>neurodigineration — validation &amp; benchmarking</title>
+  <meta name="description" content="How the neurodigineration gene-brief model is validated and benchmarked: three evaluation layers, ground-truth verification, negative controls, calibration, the rate-the-edge loop, and two priority benchmarks." />
+  <meta name="theme-color" content="#0b3b5a" />
+  <meta property="og:title" content="neurodigineration validation and benchmarking" />
+  <meta property="og:description" content="Three evaluation layers, expert ground-truth verification, negative controls, calibration, and the rate-the-edge loop as a benchmarking instrument." />
+  <meta property="og:type" content="article" />
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%230b3b5a'/><text x='50%25' y='56%25' text-anchor='middle' font-family='Georgia,serif' font-size='34' fill='white'>n</text></svg>" />
+<style>
+    :root {
+      --ink: #14202b;
+      --ink-soft: #3a4a5c;
+      --mute: #6a7787;
+      --rule: #e3e8ee;
+      --panel: #f7f9fb;
+      --accent: #0b3b5a;
+      --accent-soft: #e6eef5;
+      --warn: #b54708;
+      --warn-soft: #fff4e5;
+      --ok: #155724;
+      --bg: #ffffff;
+      --max: 980px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, .mono { font-family: "SF Mono", Menlo, Consolas, "Roboto Mono", monospace; font-size: 0.93em; }
+    .container { max-width: var(--max); margin: 0 auto; padding: 28px 22px 80px; }
+
+    /* ===== Header ===== */
+    header.site {
+      border-bottom: 1px solid var(--rule);
+      background: var(--bg);
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: saturate(180%) blur(8px);
+      -webkit-backdrop-filter: saturate(180%) blur(8px);
+    }
+    header.site .container { padding-top: 14px; padding-bottom: 14px; display: flex; align-items: center; gap: 14px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+    .brand .logo {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--accent);
+      color: white; display: grid; place-items: center;
+      font-family: Georgia, serif; font-weight: 700; font-size: 18px; line-height: 1;
+    }
+    .brand .name { font-size: 18px; }
+    .brand .name em { font-style: normal; color: var(--mute); font-weight: 500; font-size: 13px; margin-left: 6px; }
+    nav.site-nav { margin-left: auto; display: flex; gap: 18px; font-size: 14px; }
+    nav.site-nav a { color: var(--ink-soft); }
+    nav.site-nav a:hover { color: var(--accent); }
+
+    /* ===== Hero ===== */
+    .hero { padding-top: 28px; padding-bottom: 12px; }
+    .hero h1 {
+      font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+      font-weight: 600;
+      font-size: clamp(28px, 4.2vw, 40px);
+      line-height: 1.15;
+      margin: 0 0 10px;
+      letter-spacing: -0.01em;
+    }
+    .hero p.lede {
+      color: var(--ink-soft);
+      font-size: 17px;
+      max-width: 64ch;
+      margin: 0 0 22px;
+    }
+    .hero .sources {
+      color: var(--mute);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    /* ===== Search ===== */
+    form.q {
+      display: flex; gap: 8px; align-items: stretch;
+      margin: 6px 0 14px;
+    }
+    form.q input[type="text"] {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      font-size: 16px;
+      color: var(--ink);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    form.q input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    form.q button {
+      padding: 12px 18px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    form.q button:hover { background: #0a324d; }
+    form.q button:disabled { background: var(--mute); border-color: var(--mute); cursor: progress; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 28px; }
+    .chips .label { color: var(--mute); font-size: 13px; margin-right: 4px; align-self: center; }
+    .chip {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      padding: 4px 10px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--ink-soft);
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+    /* ===== Brief layout ===== */
+    .brief { display: grid; gap: 22px; }
+    .brief.hidden { display: none; }
+
+    .title-block {
+      display: flex; align-items: baseline; flex-wrap: wrap; gap: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .title-block .gene {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-style: italic;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.01em;
+    }
+    .title-block .protein {
+      font-family: Georgia, serif;
+      font-size: 22px;
+      color: var(--ink);
+    }
+    .title-block .organism {
+      font-style: italic;
+      color: var(--mute);
+      font-size: 14px;
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 14px;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+    }
+    .fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .fact .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mute); }
+    .fact .v { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+    .fact .v a { font-family: inherit; }
+
+    section.card {
+      padding: 4px 0;
+    }
+    section.card h2 {
+      font-family: Georgia, serif;
+      font-size: 19px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: var(--ink);
+      display: flex; align-items: center; gap: 10px;
+    }
+    section.card h2 .src {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 11.5px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--mute);
+      padding: 2px 8px;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--bg);
+    }
+    section.card .body p { margin: 0 0 8px; color: var(--ink-soft); }
+    section.card .body p:last-child { margin-bottom: 0; }
+
+    ul.list { list-style: none; padding: 0; margin: 4px 0 0; }
+    ul.list li {
+      padding: 10px 0;
+      border-top: 1px solid var(--rule);
+    }
+    ul.list li:first-child { border-top: 0; padding-top: 4px; }
+    ul.list .row1 { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+    ul.list .row1 .id {
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--mute);
+    }
+    ul.list .row1 .title {
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+    ul.list .row2 {
+      margin-top: 4px;
+      color: var(--mute);
+      font-size: 13px;
+    }
+    ul.list .row2 .journal { font-style: italic; }
+
+    /* ===== States ===== */
+    .skeleton {
+      background: linear-gradient(90deg, var(--panel) 0%, #eef2f6 50%, var(--panel) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s linear infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .sk-line { height: 14px; margin: 8px 0; }
+    .sk-line.w70 { width: 70%; }
+    .sk-line.w50 { width: 50%; }
+    .sk-line.w90 { width: 90%; }
+    .sk-block { height: 80px; margin: 12px 0; }
+
+    .notice {
+      padding: 14px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      border: 1px solid var(--rule);
+      background: var(--panel);
+      color: var(--ink-soft);
+    }
+    .notice.warn { background: var(--warn-soft); border-color: #f5cba7; color: var(--warn); }
+    .notice strong { color: inherit; }
+
+    /* ===== About / Footer ===== */
+    section.about {
+      margin-top: 56px;
+      padding-top: 28px;
+      border-top: 1px solid var(--rule);
+    }
+    section.about h2 {
+      font-family: Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+      margin: 0 0 10px;
+    }
+    section.about p { color: var(--ink-soft); max-width: 72ch; }
+    section.about .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+    section.about .grid .item {
+      padding: 14px;
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    section.about .grid .item h3 {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      letter-spacing: -0.01em;
+      color: var(--accent);
+    }
+    section.about .grid .item p { margin: 0; font-size: 13.5px; }
+
+    footer.site {
+      margin-top: 64px;
+      padding: 22px 0;
+      border-top: 1px solid var(--rule);
+      color: var(--mute);
+      font-size: 13px;
+      display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+    }
+    footer.site .who { flex: 1; min-width: 220px; }
+    footer.site .built { color: var(--mute); }
+    footer.site a { color: var(--ink-soft); }
+
+    .ai-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 9px;
+      font-size: 11.5px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid var(--rule);
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .ai-pill::before {
+      content: "";
+      width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
+    }
+
+    @media (max-width: 600px) {
+      .title-block .gene { font-size: 26px; }
+      .title-block .protein { font-size: 18px; }
+      form.q { flex-direction: column; }
+      form.q button { width: 100%; }
+    }
+  </style>
+  <style>
+    .doc-hero { padding-top: 30px; padding-bottom: 8px; }
+    .doc-hero .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; color: var(--mute); font-weight: 600; }
+    .doc-hero h1 { font-family: Georgia,"Iowan Old Style","Times New Roman",serif; font-weight: 600; font-size: clamp(28px,4.4vw,42px); line-height: 1.12; margin: 8px 0 12px; letter-spacing: -0.01em; }
+    .doc-hero p.lede { color: var(--ink-soft); font-size: 18px; max-width: 70ch; margin: 0 0 20px; }
+    .btnrow { display:flex; flex-wrap:wrap; gap:10px; margin: 6px 0 8px; }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:9px 15px; border-radius:8px; font-size:14px; font-weight:600; border:1px solid var(--rule); }
+    .btn.primary { background: var(--accent); color:#fff; border-color: var(--accent); }
+    .btn.primary:hover { text-decoration:none; filter:brightness(1.07); }
+    .btn.ghost { background: var(--panel); color: var(--ink); }
+    .btn.ghost:hover { text-decoration:none; border-color: var(--accent); color: var(--accent); }
+    .layer-h { font-family: Georgia,serif; font-size: 22px; margin: 26px 0 6px; color: var(--ink); }
+    .prose h2 { font-family: Georgia,serif; font-weight:600; font-size: 24px; margin: 34px 0 8px; letter-spacing:-0.01em; }
+    .prose h3 { font-size: 17px; margin: 20px 0 4px; color: var(--ink); }
+    .prose p { color: var(--ink-soft); margin: 0 0 14px; max-width: 74ch; }
+    .prose strong { color: var(--ink); }
+    .prose .mono { background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+    .stat-strip { display:flex; flex-wrap:wrap; gap:14px; margin: 18px 0 6px; }
+    .stat { background: var(--panel); border:1px solid var(--rule); border-radius:10px; padding:12px 16px; min-width:120px; }
+    .stat .n { font-size: 24px; font-weight:700; color: var(--accent); font-family: Georgia,serif; }
+    .stat .l { font-size: 12px; color: var(--mute); text-transform:uppercase; letter-spacing:.06em; }
+    table.rubric { border-collapse: collapse; width:100%; margin: 14px 0 8px; font-size: 14.5px; }
+    table.rubric th, table.rubric td { border:1px solid var(--rule); padding:10px 12px; text-align:left; vertical-align:top; }
+    table.rubric th { background: var(--accent); color:#fff; font-weight:600; }
+    table.rubric td:first-child { font-weight:600; color: var(--ink); white-space:nowrap; }
+    .callout { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin: 16px 0; }
+    .callout p { margin: 0; color: var(--ink-soft); }
+    .lim { background: var(--warn-soft); border-left: 3px solid var(--warn); border-radius: 8px; padding: 14px 16px; margin: 16px 0; }
+    .lim p { margin: 0; color: #5b3a16; max-width: 74ch; }
+  </style>
+
+</head>
+<body>
+
+<header class="site">
+  <div class="container">
+    <a class="brand" href="./">
+      <span class="logo">n</span>
+      <span class="name">neurodigineration<em>validation &amp; benchmarking</em></span>
+    </a>
+    <nav class="site-nav">
+      <a href="./network.html"><strong>Network</strong></a>
+      <a href="./ask.html"><strong>Ask</strong></a>
+      <a href="./train.html"><strong>Train</strong></a>
+      <a href="./validation.html" aria-current="page"><strong>Validation</strong></a>
+      <a href="https://github.com/abayatibrain/neurodigineration">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="container prose">
+
+  <section class="doc-hero">
+    <div class="eyebrow">Methodology</div>
+    <h1>How we validate and benchmark the model</h1>
+    <p class="lede">neurodigineration composes a gene brief live from four public APIs and lets a subject-matter
+    expert grade and reshape the generator through a preference loop. This page lays out what &ldquo;works&rdquo;
+    means at each layer, and the two benchmarks I would actually put on a public leaderboard.</p>
+    <div class="btnrow">
+      <a class="btn primary" href="./docs/neurodigineration-validation-benchmarking.docx">Download the full write-up (.docx)</a>
+      <a class="btn ghost" href="./network.html">Open the network &rarr;</a>
+      <a class="btn ghost" href="./train.html">Open training mode &rarr;</a>
+    </div>
+    <div class="stat-strip">
+      <div class="stat"><div class="n">311</div><div class="l">graph nodes</div></div>
+      <div class="stat"><div class="n">474</div><div class="l">edges</div></div>
+      <div class="stat"><div class="n">~167</div><div class="l">candidate edges</div></div>
+      <div class="stat"><div class="n">1:1</div><div class="l">graph &harr; trainable panel</div></div>
+    </div>
+  </section>
+
+  <p>Most agent demonstrations stop at &ldquo;it produced something plausible.&rdquo; That is the wrong bar.
+  If I am going to claim the system works, I need a story for what works means at each layer, and a few
+  benchmarks I would be willing to defend in public. The short version: tooling fidelity is the floor,
+  agentic reasoning is the middle, and scientific output quality is what matters. I lean hardest on the last
+  layer, scoring generated briefs against expert-curated ground truth.</p>
+
+  <h2>Three layers of evaluation</h2>
+
+  <h3>Layer 1: Tooling fidelity</h3>
+  <p>Does the system retrieve and parse the correct underlying records from UniProt, NCBI, Ensembl, and
+  Reactome? This is the mechanical floor: a held-out gene set, hand-curated canonical answers, precision and
+  recall. It is rarely reported in agent papers, but if the tool layer is unreliable every downstream claim is
+  unsupported. I treat it as a gate, not a headline number.</p>
+
+  <h3>Layer 2: Agentic reasoning quality</h3>
+  <p>Given a query, does the agent make defensible decisions about which tools to call, in which order, and
+  when to stop? Best evaluated through trajectory grading: an expert scores each tool call as necessary,
+  sufficient, or redundant, with a composite for the whole resolution path, reported as expert-agreement rates
+  against a held-out query set. It is subjective, and I would rather under-claim here than pretend trajectory
+  grading is fully objective.</p>
+
+  <h3>Layer 3: Scientific output quality</h3>
+  <p>This is the layer that matters most. A brief can pass Layers 1 and 2, retrieve every correct record and
+  call every tool sensibly, and still overstate a mechanism or bury the one caveat a reviewer cares about.
+  Layer 3 is where that gets caught.</p>
+
+  <h2>Verifying output against ground truth</h2>
+
+  <h3>Expert-curated reference set</h3>
+  <p>Build a gene-brief gold-standard set: roughly 30 well-characterized genes
+  across AD (<em>APOE, MAPT, TREM2, APP, PSEN1</em>), PD (<em>SNCA, LRRK2, GBA, PRKN, PINK1</em>), ALS
+  (<em>SOD1, TARDBP, C9orf72, FUS</em>), and a non-neuro control set. For each, an expert-curated reference
+  brief fixes the canonical facts; outputs are then scored claim by claim for accuracy, completeness, citation
+  grounding, and false-claim rate. A missed fact is a recall problem; a confidently asserted false one is a
+  different and worse failure, scored separately. Where a brief makes a computable claim, the expert
+  recomputes it independently and we report the correlation between system and expert values.</p>
+
+  <h3>Negative controls</h3>
+  <p>A negative control is the most informative test here, and the one most demonstrations skip. The system is
+  run against an adversarial input battery: fictional gene symbols, ambiguous queries, real genes paired with
+  false-premise context (&ldquo;describe <em>SNCA</em>&rsquo;s role in glycolysis&rdquo;), and queries about
+  superseded findings. The benchmark is not accuracy on these inputs; it is appropriate-rejection rate. Does the
+  system flag the problem, or produce a confidently wrong brief.</p>
+
+  <h3>Calibration</h3>
+  <p>When the system expresses confidence, whether implicit in tone or explicit if instrumented, does that
+  confidence track actual accuracy? Once expert-scored outputs exist, a reliability diagram is straightforward.
+  I expect the first version to be poorly calibrated, and naming that up front is the honest position.</p>
+
+  <h2>What the network uniquely enables</h2>
+  <p>The rate-the-edge feedback loop on the cross-disease network is itself a benchmarking instrument. The
+  graph now carries <strong>311 nodes and 474 edges</strong> across 11 disease groups, and the node set is
+  one-to-one with the trainable model panel, so anything you see in the graph is something you can train and
+  test. Each edge is a model-proposed gene&ndash;gene relationship anchored by the PubMed citations the brief
+  surfaces, and each user rating is a domain-expert judgement on that edge. Three analyses follow: inter-rater
+  agreement (do independent experts converge on which edges are real?), model&ndash;expert agreement (does the
+  system&rsquo;s edge confidence track expert ratings?), and held-out enrichment (are highly rated edges enriched
+  for interactions independently validated in STRING, BioGRID, or curated pathways?). Over time the loop produces
+  a labeled dataset of expert-judged biological edges, a resource with publishable value in its own right.</p>
+
+  <div class="callout">
+    <p><strong>The current expansion was built to feed exactly this loop.</strong> The latest round added
+    roughly 90 new proteins and synced 17 that were already trainable but missing from the graph. Every new edge
+    ships marked <span class="mono">tentative: true</span> (rendered dotted) with an empty
+    <span class="mono">pmids: []</span> field, and about 167 of the 474 edges are now in this candidate state.
+    That is deliberate: the dotted edges are not load-bearing claims, they are hypotheses staged for the expert
+    to confirm, downgrade, or kill, and the citation slot is left empty so that validation, not generation, fills
+    it.</p>
+  </div>
+
+  <h2>The Layer-3 scoring rubric</h2>
+  <p>Each brief in the gold-standard evaluation is scored on four dimensions. The same four are the knobs the
+  training loop reweights, so the rubric the expert applies and the rubric the model optimizes against are the
+  same object.</p>
+  <table class="rubric">
+    <thead><tr><th>Dimension</th><th>What it measures</th><th>Dominant failure mode</th></tr></thead>
+    <tbody>
+      <tr><td>Factuality</td><td>Are the asserted facts correct against the reference brief?</td><td>Confidently wrong claim (scored worse than an omission)</td></tr>
+      <tr><td>Completeness</td><td>Recall of the canonical facts a reviewer would expect</td><td>Missing a key interactor or disease association</td></tr>
+      <tr><td>Citation</td><td>Every identifier (UniProt, Reactome, PMID) grounded and verbatim</td><td>Fabricated or unverifiable identifier</td></tr>
+      <tr><td>Clarity</td><td>Dense, unhedged, well-structured prose at peer register</td><td>Evasiveness and vague hedging</td></tr>
+    </tbody>
+  </table>
+  <p>One design note worth stating plainly: the mock brief pool penalizes <em>evasiveness</em>, not falsehood.
+  The low-quality variants hedge and omit identifiers but are never made factually wrong, because a deliberately
+  incorrect brief would turn the training set into a misinformation source.</p>
+
+  <h2>Two benchmarks to prioritize first</h2>
+  <h3>Benchmark A: Gene-brief gold-standard evaluation</h3>
+  <p>Roughly 30 expert-curated reference briefs across AD, PD, ALS, and a non-neuro control set, scored on
+  factual accuracy, recall of canonical facts, false-claim rate, and citation grounding. Lightweight,
+  presentable, and a defensible foundation for any further claim. Build it first because it is the cheapest
+  credible thing, and the gold-standard briefs double as new few-shot exemplars.</p>
+  <h3>Benchmark B: Adversarial rejection</h3>
+  <p>Fictional-symbol inputs, ambiguous queries, false-premise queries, and outdated-finding queries, scored on
+  appropriate-rejection rate and willingness to flag uncertainty. The test most aligned with the field&rsquo;s
+  stated needs, and the one I would most want to put on a public leaderboard. It is also the one I expect the
+  current system to do worst on, which is exactly why it is worth reporting.</p>
+
+  <h2>What could undermine these numbers</h2>
+  <div class="lim">
+    <p>The gold-standard set is small (30 genes) and curated by one expert, so inter-annotator agreement on the
+    references themselves is unmeasured until a second rater is added. Trajectory grading in Layer 2 is
+    subjective and should not be a single headline number. Held-out enrichment treats STRING and BioGRID as
+    clean ground truth, which they are not; they carry their own literature-co-occurrence contamination, so
+    enrichment measures agreement with a noisy oracle, not truth. And tone-level calibration is shaky by
+    construction until confidence is explicitly instrumented. None of these sink the program; they set the
+    honest ceiling on what the first round of numbers can claim.</p>
+  </div>
+
+  <footer class="site">
+    <div class="who">
+      Made by <a href="https://arminbayati.com" target="_blank" rel="noopener">Armin Bayati</a>
+      &middot;
+      <a href="https://github.com/abayatibrain/neurodigineration">source</a>
+    </div>
+    <div class="built">No backend. No tracking. Static HTML + four CORS-enabled public APIs.</div>
+  </footer>
+
+</main>
+
+</body>
+</html>

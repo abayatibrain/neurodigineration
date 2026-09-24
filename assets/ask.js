@@ -256,6 +256,8 @@ async function resolveModelSource() {
     model.state.ratingsLog.length === 0 &&
     model.state.fewShotExamples.length === 0 &&
     model.state.avoidPatterns.length === 0 &&
+    model.edgeRatings.length === 0 &&
+    model.acceptedEdges.length === 0 &&
     model.state.versionHistory.length <= 1;
 
   if (!isFresh) {
@@ -281,8 +283,8 @@ function renderModelStatus() {
   const pill = $('#model-status-pill');
   if (state.modelSource === 'localstorage') {
     pill.className = 'pill trained';
-    pill.textContent = `Trained · ${model.version} · ${model.ratingsLog.length} labels`;
-    pill.title = `Loaded from your local training session (${model.fewShotExamples.length} examples, ${model.avoidPatterns.length} avoid patterns).`;
+    pill.textContent = `Trained · ${model.version} · ${model.ratingsLog.length + model.edgeRatings.length} labels`;
+    pill.title = `Loaded from your local training session (${model.fewShotExamples.length} examples, ${model.avoidPatterns.length} avoid patterns, ${model.edgeRatings.length} network verdicts).`;
   } else if (state.modelSource === 'committed') {
     pill.className = 'pill trained';
     pill.textContent = `Trained · ${model.version} (committed)`;
@@ -454,20 +456,14 @@ async function ask() {
   // Build the system prompt: trained-model systemPrompt OR neurodegen default,
   // plus avoid patterns appended.
   const trainedPromptIsDefault = model.systemPrompt === DEFAULT_SYSTEM_PROMPT;
-  let systemPrompt = trainedPromptIsDefault ? NEURODEGEN_SYSTEM_PROMPT : model.systemPrompt;
-  if (model.avoidPatterns.length > 0) {
-    systemPrompt += '\n\n## Avoid these specific failure modes (distilled from SME-rated past outputs):\n';
-    for (const av of model.avoidPatterns) systemPrompt += `- ${av.pattern}\n`;
-  }
+  const { system: systemPrompt, fewShot } = model.compilePrompt({
+    base: trainedPromptIsDefault ? NEURODEGEN_SYSTEM_PROMPT : model.systemPrompt,
+    genes: sym ? [sym] : null,
+    exampleUser: (g) => `(Example) Produce a brief on the gene ${g}.`,
+  });
 
   // Build messages: few-shot history (if any) + prior conversation + new user turn with context attached.
-  const messages = [];
-
-  // Few-shot examples as prior user/assistant turns
-  for (const ex of model.fewShotExamples.slice(-3)) {
-    messages.push({ role: 'user', content: `(Example) Produce a brief on the gene ${ex.gene}.` });
-    messages.push({ role: 'assistant', content: ex.brief });
-  }
+  const messages = [...fewShot];
 
   // Prior conversation (skip the just-added placeholder)
   const priors = state.conversation.slice(0, -1);
@@ -547,6 +543,9 @@ async function boot() {
   const sel = $('#api-model');
   sel.innerHTML = '';
   for (const m of ANTHROPIC_MODELS) sel.appendChild(el('option', { value: m.id }, m.label));
+  if (!ANTHROPIC_MODELS.some((m) => m.id === model.settings.anthropicModel)) {
+    sel.appendChild(el('option', { value: model.settings.anthropicModel }, `${model.settings.anthropicModel} (saved)`));
+  }
   sel.value = model.settings.anthropicModel;
   sel.addEventListener('change', (e) => model.updateSettings({ anthropicModel: e.target.value }));
 
